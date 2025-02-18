@@ -583,8 +583,8 @@ export async function matchTransactions(
     // first.
     if (trans.imported_id) {
       match = await db.first(
-        'SELECT * FROM v_transactions WHERE imported_id = ? AND account = ?',
-        [trans.imported_id, acctId],
+        'SELECT * FROM v_transactions WHERE imported_id = ? AND account = ? AND amount = ?',
+        [trans.imported_id, acctId, trans.amount || 0],
       );
 
       if (match) {
