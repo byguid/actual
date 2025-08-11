@@ -3,31 +3,36 @@ import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { SvgDotsHorizontalTriple } from '@actual-app/components/icons/v1';
+import {
+  SvgArrowButtonDown1,
+  SvgArrowButtonUp1,
+} from '@actual-app/components/icons/v2';
 import { Popover } from '@actual-app/components/popover';
 import { Stack } from '@actual-app/components/stack';
 import { styles } from '@actual-app/components/styles';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
 import * as monthUtils from 'loot-core/shared/months';
-
-import { useUndo } from '../../../../hooks/useUndo';
-import { SvgDotsHorizontalTriple } from '../../../../icons/v1';
-import { SvgArrowButtonDown1, SvgArrowButtonUp1 } from '../../../../icons/v2';
-import { theme } from '../../../../style';
-import { NotesButton } from '../../../NotesButton';
-import { NamespaceContext } from '../../../spreadsheet/NamespaceContext';
-import { useTrackingBudget } from '../TrackingBudgetContext';
 
 import { BudgetMonthMenu } from './BudgetMonthMenu';
 import { ExpenseTotal } from './ExpenseTotal';
 import { IncomeTotal } from './IncomeTotal';
 import { Saved } from './Saved';
 
+import { useTrackingBudget } from '@desktop-client/components/budget/tracking/TrackingBudgetContext';
+import { NotesButton } from '@desktop-client/components/NotesButton';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { SheetNameProvider } from '@desktop-client/hooks/useSheetName';
+import { useUndo } from '@desktop-client/hooks/useUndo';
+
 type BudgetSummaryProps = {
-  month?: string;
+  month: string;
 };
 export function BudgetSummary({ month }: BudgetSummaryProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
   const {
     currentMonth,
@@ -52,7 +57,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
     ? SvgArrowButtonDown1
     : SvgArrowButtonUp1;
 
-  const displayMonth = monthUtils.format(month, 'MMMM ‘yy');
+  const displayMonth = monthUtils.format(month, 'MMMM ‘yy', locale);
 
   return (
     <View
@@ -79,7 +84,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
         },
       }}
     >
-      <NamespaceContext.Provider value={monthUtils.sheetForMonth(month)}>
+      <SheetNameProvider name={monthUtils.sheetForMonth(month)}>
         <View
           style={{
             padding: '0 13px',
@@ -121,7 +126,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
               textDecorationSkip: 'ink',
             })}
           >
-            {monthUtils.format(month, 'MMMM')}
+            {monthUtils.format(month, 'MMMM', locale)}
           </div>
 
           <View
@@ -260,7 +265,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
             style={{ marginTop: 13, marginBottom: 20 }}
           />
         )}
-      </NamespaceContext.Provider>
+      </SheetNameProvider>
     </View>
   );
 }

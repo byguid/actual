@@ -12,6 +12,21 @@ export class PostError extends Error {
   }
 }
 
+export class BankSyncError extends Error {
+  reason: string;
+  category: string;
+  code: string;
+  type: 'BankSyncError';
+
+  constructor(reason: string, category: string, code: string) {
+    super('BankSyncError: ' + reason);
+    this.type = 'BankSyncError';
+    this.reason = reason;
+    this.category = category;
+    this.code = code;
+  }
+}
+
 export class HTTPError extends Error {
   statusCode: number;
   responseBody: string;
@@ -72,7 +87,12 @@ export function APIError(msg: string, meta?: Record<string, any>) {
 
 export function FileDownloadError(
   reason: string,
-  meta?: { fileId?: string; isMissingKey?: boolean },
+  meta?: {
+    fileId?: string;
+    isMissingKey?: boolean;
+    name?: string;
+    id?: string;
+  },
 ) {
   return { type: 'FileDownloadError', reason, meta };
 }

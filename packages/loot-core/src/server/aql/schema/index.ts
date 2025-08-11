@@ -63,6 +63,7 @@ export const schema = {
     transfer_acct: f('id', { ref: 'accounts' }),
     tombstone: f('boolean'),
     favorite: f('boolean'),
+    learn_categories: f('boolean'),
   },
   accounts: {
     id: f('id'),
@@ -74,6 +75,7 @@ export const schema = {
     account_id: f('string'),
     official_name: f('string'),
     account_sync_source: f('string'),
+    last_reconciled: f('string'),
     last_sync: f('string'),
   },
   categories: {
@@ -82,6 +84,7 @@ export const schema = {
     is_income: f('boolean'),
     hidden: f('boolean'),
     group: f('id', { ref: 'category_groups' }),
+    goal_def: f('string'),
     sort_order: f('float'),
     tombstone: f('boolean'),
   },
@@ -246,6 +249,10 @@ export const schemaConfig: SchemaConfig = {
             { sort_order: 'desc' },
             'id',
           ];
+        case 'category_groups':
+          return ['is_income', 'sort_order', 'id'];
+        case 'categories':
+          return ['sort_order', 'id'];
         case 'payees':
           return [
             { $condition: { transfer_acct: null }, $dir: 'desc' },
@@ -297,7 +304,7 @@ export const schemaConfig: SchemaConfig = {
 
     schedules: {
       v_schedules: internalFields => {
-        /* eslint-disable rulesdir/typography */
+        /* eslint-disable actual/typography */
         const fields = internalFields({
           next_date: `
             CASE
@@ -321,7 +328,7 @@ export const schemaConfig: SchemaConfig = {
         LEFT JOIN rules _rules ON _rules.id = _.rule
         LEFT JOIN payee_mapping pm ON pm.id = json_extract(_rules.conditions, _paths.payee || '.value')
         `;
-        /* eslint-enable rulesdir/typography */
+        /* eslint-enable actual/typography */
       },
     },
 

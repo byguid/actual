@@ -1,19 +1,19 @@
 import React from 'react';
 
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
 import { type RuleConditionEntity } from 'loot-core/types/models';
 
-import { theme } from '../../style';
-import { FieldSelect } from '../modals/EditRuleModal';
+import { FieldSelect } from '@desktop-client/components/rules/RuleEditor';
 
 export function ConditionsOpMenu({
   conditionsOp,
   onChange,
   conditions,
 }: {
-  conditionsOp: string;
+  conditionsOp: 'and' | 'or';
   onChange: (value: 'and' | 'or') => void;
   conditions: RuleConditionEntity[];
 }) {

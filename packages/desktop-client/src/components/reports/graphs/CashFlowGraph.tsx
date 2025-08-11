@@ -18,23 +18,27 @@ import {
   type TooltipProps,
 } from 'recharts';
 
-import {
-  amountToCurrency,
-  amountToCurrencyNoDecimal,
-} from 'loot-core/shared/util';
-
-import { usePrivacyMode } from '../../../hooks/usePrivacyMode';
-import { chartTheme } from '../chart-theme';
-import { Container } from '../Container';
+import { chartTheme } from '@desktop-client/components/reports/chart-theme';
+import { Container } from '@desktop-client/components/reports/Container';
+import { type FormatType, useFormat } from '@desktop-client/hooks/useFormat';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { usePrivacyMode } from '@desktop-client/hooks/usePrivacyMode';
 
 const MAX_BAR_SIZE = 50;
 const ANIMATION_DURATION = 1000; // in ms
 
 type CustomTooltipProps = TooltipProps<number, 'date'> & {
   isConcise: boolean;
+  format: (value: unknown, type?: FormatType) => string;
 };
 
-function CustomTooltip({ active, payload, isConcise }: CustomTooltipProps) {
+function CustomTooltip({
+  active,
+  payload,
+  isConcise,
+  format,
+}: CustomTooltipProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
 
   if (!active || !payload || !Array.isArray(payload) || !payload[0]) {
@@ -57,33 +61,37 @@ function CustomTooltip({ active, payload, isConcise }: CustomTooltipProps) {
       <div>
         <div style={{ marginBottom: 10 }}>
           <strong>
-            {d.format(data.date, isConcise ? 'MMMM yyyy' : 'MMMM dd, yyyy')}
+            {d.format(data.date, isConcise ? 'MMMM yyyy' : 'MMMM dd, yyyy', {
+              locale,
+            })}
           </strong>
         </div>
         <div style={{ lineHeight: 1.5 }}>
           <AlignedText
             left={t('Income:')}
-            right={amountToCurrency(data.income)}
+            right={format(data.income, 'financial')}
           />
           <AlignedText
             left={t('Expenses:')}
-            right={amountToCurrency(data.expenses)}
+            right={format(data.expenses, 'financial')}
           />
           <AlignedText
             left={t('Change:')}
             right={
-              <strong>{amountToCurrency(data.income + data.expenses)}</strong>
+              <strong>
+                {format(data.income + data.expenses, 'financial')}
+              </strong>
             }
           />
           {data.transfers !== 0 && (
             <AlignedText
               left={t('Transfers:')}
-              right={amountToCurrency(data.transfers)}
+              right={format(data.transfers, 'financial')}
             />
           )}
           <AlignedText
             left={t('Balance:')}
-            right={amountToCurrency(data.balance)}
+            right={format(data.balance, 'financial')}
           />
         </div>
       </div>
@@ -108,8 +116,10 @@ export function CashFlowGraph({
   showBalance = true,
   style,
 }: CashFlowGraphProps) {
+  const locale = useLocale();
   const privacyMode = usePrivacyMode();
   const [yAxisIsHovered, setYAxisIsHovered] = useState(false);
+  const format = useFormat();
 
   const data = graphData.expenses.map((row, idx) => ({
     date: row.x,
@@ -134,8 +144,10 @@ export function CashFlowGraph({
               dataKey="date"
               tick={{ fill: theme.reportsLabel }}
               tickFormatter={x => {
-                // eslint-disable-next-line rulesdir/typography
-                return d.format(x, isConcise ? "MMM ''yy" : 'MMM d');
+                // eslint-disable-next-line actual/typography
+                return d.format(x, isConcise ? "MMM ''yy" : 'MMM d', {
+                  locale,
+                });
               }}
               minTickGap={50}
             />
@@ -145,17 +157,19 @@ export function CashFlowGraph({
               tickFormatter={value =>
                 privacyMode && !yAxisIsHovered
                   ? '...'
-                  : amountToCurrencyNoDecimal(value)
+                  : format(value, 'financial-no-decimals')
               }
               onMouseEnter={() => setYAxisIsHovered(true)}
               onMouseLeave={() => setYAxisIsHovered(false)}
             />
             <Tooltip
               labelFormatter={x => {
-                // eslint-disable-next-line rulesdir/typography
-                return d.format(x, isConcise ? "MMM ''yy" : 'MMM d');
+                // eslint-disable-next-line actual/typography
+                return d.format(x, isConcise ? "MMM ''yy" : 'MMM d', {
+                  locale,
+                });
               }}
-              content={<CustomTooltip isConcise={isConcise} />}
+              content={<CustomTooltip isConcise={isConcise} format={format} />}
               isAnimationActive={false}
             />
 

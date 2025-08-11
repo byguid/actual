@@ -1,25 +1,22 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
 import * as monthUtils from 'loot-core/shared/months';
 import {
-  amountToCurrency,
-  integerToCurrency,
-  amountToInteger,
-} from 'loot-core/shared/util';
-import {
   type balanceTypeOpType,
   type DataEntity,
-} from 'loot-core/types/models/reports';
-
-import { theme } from '../../style';
-import { PrivacyFilter } from '../PrivacyFilter';
+} from 'loot-core/types/models';
 
 import { ReportOptions } from './ReportOptions';
+
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import { useLocale } from '@desktop-client/hooks/useLocale';
 
 type ReportSummaryProps = {
   startDate: string;
@@ -38,16 +35,19 @@ export function ReportSummary({
   interval,
   intervalsCount,
 }: ReportSummaryProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
+  const format = useFormat();
+
   const net =
     balanceTypeOp === 'netAssets'
-      ? 'DEPOSIT'
+      ? t('DEPOSIT')
       : balanceTypeOp === 'netDebts'
-        ? 'PAYMENT'
+        ? t('PAYMENT')
         : Math.abs(data.totalDebts) > Math.abs(data.totalAssets)
-          ? 'PAYMENT'
-          : 'DEPOSIT';
-  const average = amountToInteger(data[balanceTypeOp]) / intervalsCount;
+          ? t('PAYMENT')
+          : t('DEPOSIT');
+  const average = Math.round(data[balanceTypeOp] / intervalsCount);
   return (
     <View
       style={{
@@ -74,19 +74,23 @@ export function ReportSummary({
           {monthUtils.format(
             startDate,
             ReportOptions.intervalFormat.get(interval) || '',
+            locale,
           )}
           {monthUtils.format(
             startDate,
             ReportOptions.intervalFormat.get(interval) || '',
+            locale,
           ) !==
             monthUtils.format(
               endDate,
               ReportOptions.intervalFormat.get(interval) || '',
+              locale,
             ) &&
-            ' to ' +
+            ` ${t('to')} ` +
               monthUtils.format(
                 endDate,
                 ReportOptions.intervalFormat.get(interval) || '',
+                locale,
               )}
         </Text>
       </View>
@@ -108,10 +112,10 @@ export function ReportSummary({
           }}
         >
           {balanceTypeOp === 'totalDebts'
-            ? 'TOTAL SPENDING'
+            ? t('TOTAL SPENDING')
             : balanceTypeOp === 'totalAssets'
-              ? 'TOTAL DEPOSITS'
-              : 'NET ' + net}
+              ? t('TOTAL DEPOSITS')
+              : t('NET {{net}}', { net })}
         </Text>
         <Text
           style={{
@@ -121,9 +125,13 @@ export function ReportSummary({
             fontWeight: 800,
           }}
         >
-          <PrivacyFilter>{amountToCurrency(data[balanceTypeOp])}</PrivacyFilter>
+          <PrivacyFilter>
+            {format(data[balanceTypeOp], 'financial')}
+          </PrivacyFilter>
         </Text>
-        <Text style={{ fontWeight: 600 }}>{t('For this time period')}</Text>
+        <Text style={{ fontWeight: 600 }}>
+          <Trans>For this time period</Trans>
+        </Text>
       </View>
       <View
         style={{
@@ -143,10 +151,10 @@ export function ReportSummary({
           }}
         >
           {balanceTypeOp === 'totalDebts'
-            ? 'AVERAGE SPENDING'
+            ? t('AVERAGE SPENDING')
             : balanceTypeOp === 'totalAssets'
-              ? 'AVERAGE DEPOSIT'
-              : 'AVERAGE NET'}
+              ? t('AVERAGE DEPOSIT')
+              : t('AVERAGE NET')}
         </Text>
         <Text
           style={{
@@ -157,11 +165,18 @@ export function ReportSummary({
           }}
         >
           <PrivacyFilter>
-            {!isNaN(average) && integerToCurrency(Math.round(average))}
+            {!isNaN(average) && format(average, 'financial')}
           </PrivacyFilter>
         </Text>
         <Text style={{ fontWeight: 600 }}>
-          Per {(ReportOptions.intervalMap.get(interval) || '').toLowerCase()}
+          <Trans>
+            Per{' '}
+            {{
+              interval: (
+                ReportOptions.intervalMap.get(interval) || ''
+              ).toLowerCase(),
+            }}
+          </Trans>
         </Text>
       </View>
     </View>

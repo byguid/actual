@@ -1,5 +1,5 @@
 import React, { type ReactElement } from 'react';
-import { Trans } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Block } from '@actual-app/components/block';
 import { styles } from '@actual-app/components/styles';
@@ -8,6 +8,8 @@ import { theme } from '@actual-app/components/theme';
 import * as d from 'date-fns';
 
 import * as monthUtils from 'loot-core/shared/months';
+
+import { useLocale } from '@desktop-client/hooks/useLocale';
 
 type DateRangeProps = {
   start: string;
@@ -25,6 +27,8 @@ function checkDate(date: string) {
 }
 
 export function DateRange({ start, end, type }: DateRangeProps): ReactElement {
+  const { t } = useTranslation();
+  const locale = useLocale();
   const checkStart = checkDate(start);
   const checkEnd = checkDate(end);
 
@@ -41,12 +45,12 @@ export function DateRange({ start, end, type }: DateRangeProps): ReactElement {
     );
   }
 
-  const formattedStartDate = d.format(startDate, 'MMM yyyy');
-  const formattedEndDate = d.format(endDate, 'MMM yyyy');
+  const formattedStartDate = d.format(startDate, 'MMM yyyy', { locale });
+  const formattedEndDate = d.format(endDate, 'MMM yyyy', { locale });
   let typeOrFormattedEndDate: string;
 
   if (type && ['budget', 'average'].includes(type)) {
-    typeOrFormattedEndDate = type === 'budget' ? 'budgeted' : type;
+    typeOrFormattedEndDate = type === 'budget' ? t('budgeted') : t('average');
   } else {
     typeOrFormattedEndDate = formattedEndDate;
   }
@@ -78,7 +82,7 @@ export function DateRange({ start, end, type }: DateRangeProps): ReactElement {
       </div>
     );
   } else {
-    content = d.format(endDate, 'MMMM yyyy');
+    content = d.format(endDate, 'MMMM yyyy', { locale });
   }
 
   return <Block style={{ color: theme.pageTextSubdued }}>{content}</Block>;

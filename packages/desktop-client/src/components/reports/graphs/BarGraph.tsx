@@ -19,26 +19,23 @@ import {
 } from 'recharts';
 
 import {
-  amountToCurrency,
-  amountToCurrencyNoDecimal,
-} from 'loot-core/shared/util';
-import {
   type balanceTypeOpType,
   type DataEntity,
-} from 'loot-core/types/models/reports';
-import { type RuleConditionEntity } from 'loot-core/types/models/rule';
-
-import { useAccounts } from '../../../hooks/useAccounts';
-import { useCategories } from '../../../hooks/useCategories';
-import { useNavigate } from '../../../hooks/useNavigate';
-import { usePrivacyMode } from '../../../hooks/usePrivacyMode';
-import { Container } from '../Container';
-import { getCustomTick } from '../getCustomTick';
-import { numberFormatterTooltip } from '../numberFormatter';
+  type RuleConditionEntity,
+} from 'loot-core/types/models';
 
 import { adjustTextSize } from './adjustTextSize';
 import { renderCustomLabel } from './renderCustomLabel';
 import { showActivity } from './showActivity';
+
+import { Container } from '@desktop-client/components/reports/Container';
+import { getCustomTick } from '@desktop-client/components/reports/getCustomTick';
+import { numberFormatterTooltip } from '@desktop-client/components/reports/numberFormatter';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { type FormatType, useFormat } from '@desktop-client/hooks/useFormat';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { usePrivacyMode } from '@desktop-client/hooks/usePrivacyMode';
 
 type PayloadChild = {
   props: {
@@ -66,6 +63,7 @@ type CustomTooltipProps = {
   payload?: PayloadItem[];
   balanceTypeOp?: balanceTypeOpType;
   yAxis?: string;
+  format: (value: unknown, type: FormatType) => string;
 };
 
 const CustomTooltip = ({
@@ -73,6 +71,7 @@ const CustomTooltip = ({
   payload,
   balanceTypeOp,
   yAxis,
+  format,
 }: CustomTooltipProps) => {
   const { t } = useTranslation();
 
@@ -97,25 +96,25 @@ const CustomTooltip = ({
             {['totalAssets', 'totalTotals'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Assets:')}
-                right={amountToCurrency(payload[0].payload.totalAssets)}
+                right={format(payload[0].payload.totalAssets, 'financial')}
               />
             )}
             {['totalDebts', 'totalTotals'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Debts:')}
-                right={amountToCurrency(payload[0].payload.totalDebts)}
+                right={format(payload[0].payload.totalDebts, 'financial')}
               />
             )}
             {['netAssets'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Net Assets:')}
-                right={amountToCurrency(payload[0].payload.netAssets)}
+                right={format(payload[0].payload.netAssets, 'financial')}
               />
             )}
             {['netDebts'].includes(balanceTypeOp) && (
               <AlignedText
                 left={t('Net Debts:')}
-                right={amountToCurrency(payload[0].payload.netDebts)}
+                right={format(payload[0].payload.netDebts, 'financial')}
               />
             )}
             {['totalTotals'].includes(balanceTypeOp) && (
@@ -123,7 +122,7 @@ const CustomTooltip = ({
                 left={t('Net:')}
                 right={
                   <strong>
-                    {amountToCurrency(payload[0].payload.totalTotals)}
+                    {format(payload[0].payload.totalTotals, 'financial')}
                   </strong>
                 }
               />
@@ -135,12 +134,12 @@ const CustomTooltip = ({
   }
 };
 
-const customLabel = (props, typeOp) => {
+const customLabel = (props, typeOp, format) => {
   const calcX = props.x + props.width / 2;
   const calcY = props.y - (props.value > 0 ? 15 : -15);
   const textAnchor = 'middle';
   const display =
-    props.value !== 0 && `${amountToCurrencyNoDecimal(props.value)}`;
+    props.value !== 0 && `${format(props.value, 'financial-no-decimals')}`;
   const textSize = adjustTextSize({
     sized: props.width,
     type: typeOp === 'totalTotals' ? 'default' : 'variable',
@@ -179,6 +178,8 @@ export function BarGraph({
   const categories = useCategories();
   const accounts = useAccounts();
   const privacyMode = usePrivacyMode();
+  const format = useFormat();
+
   const [pointer, setPointer] = useState('');
 
   const yAxis = groupBy === 'Interval' ? 'date' : 'name';
@@ -235,36 +236,39 @@ export function BarGraph({
                       <CustomTooltip
                         balanceTypeOp={balanceTypeOp}
                         yAxis={yAxis}
+                        format={format}
                       />
                     }
                     formatter={numberFormatterTooltip}
                     isAnimationActive={false}
                   />
                 )}
+                {!compact && <CartesianGrid strokeDasharray="3 3" />}
                 {!compact && (
-                  <>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey={yAxis}
-                      angle={-35}
-                      textAnchor="end"
-                      height={Math.sqrt(longestLabelLength) * 25}
-                      tick={{ fill: theme.pageText }}
-                      tickLine={{ stroke: theme.pageText }}
-                    />
-                    <YAxis
-                      tickFormatter={value =>
-                        getCustomTick(
-                          amountToCurrencyNoDecimal(value),
-                          privacyMode,
-                        )
-                      }
-                      tick={{ fill: theme.pageText }}
-                      tickLine={{ stroke: theme.pageText }}
-                      tickSize={0}
-                    />
-                    <ReferenceLine y={0} stroke={theme.pageTextLight} />
-                  </>
+                  <XAxis
+                    dataKey={yAxis}
+                    angle={-35}
+                    textAnchor="end"
+                    height={Math.sqrt(longestLabelLength) * 25}
+                    tick={{ fill: theme.pageText }}
+                    tickLine={{ stroke: theme.pageText }}
+                  />
+                )}
+                {!compact && (
+                  <YAxis
+                    tickFormatter={value =>
+                      getCustomTick(
+                        format(value, 'financial-no-decimals'),
+                        privacyMode,
+                      )
+                    }
+                    tick={{ fill: theme.pageText }}
+                    tickLine={{ stroke: theme.pageText }}
+                    tickSize={0}
+                  />
+                )}
+                {!compact && (
+                  <ReferenceLine y={0} stroke={theme.pageTextLight} />
                 )}
                 <Bar
                   dataKey={val => getVal(val)}
@@ -296,7 +300,7 @@ export function BarGraph({
                   {viewLabels && !compact && (
                     <LabelList
                       dataKey={val => getVal(val)}
-                      content={e => customLabel(e, balanceTypeOp)}
+                      content={e => customLabel(e, balanceTypeOp, format)}
                     />
                   )}
                   {data.legend.map((entry, index) => (

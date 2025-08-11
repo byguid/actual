@@ -91,7 +91,7 @@ export const styles: Record<string, any> = {
   },
   shadowLarge,
   tnum: {
-    // eslint-disable-next-line rulesdir/typography
+    // eslint-disable-next-line actual/typography
     fontFeatureSettings: '"tnum"',
   },
   notFixed: { fontFeatureSettings: '' },
@@ -148,4 +148,10 @@ export const styles: Record<string, any> = {
   lightScrollbar: null as CSSProperties | null,
   darkScrollbar: null as CSSProperties | null,
   scrollbarWidth: null as number | null,
+  editorPill: {
+    color: theme.pillText,
+    backgroundColor: theme.pillBackground,
+    borderRadius: 4,
+    padding: '3px 5px',
+  },
 };

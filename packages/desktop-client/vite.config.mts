@@ -109,6 +109,10 @@ export default defineConfig(async ({ mode }) => {
     base: '/',
     envPrefix: 'REACT_APP_',
     build: {
+      terserOptions: {
+        compress: false,
+        mangle: false,
+      },
       target: 'es2022',
       sourcemap: true,
       outDir: mode === 'desktop' ? 'build-electron' : 'build',
@@ -161,6 +165,7 @@ export default defineConfig(async ({ mode }) => {
               ],
               ignoreURLParametersMatching: [/^v$/],
               navigateFallback: '/index.html',
+              maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
               navigateFallbackDenylist: [
                 /^\/account\/.*$/,
                 /^\/admin\/.*$/,
@@ -189,6 +194,10 @@ export default defineConfig(async ({ mode }) => {
       environment: 'jsdom',
       globals: true,
       setupFiles: './src/setupTests.js',
+      onConsoleLog(log: string, type: 'stdout' | 'stderr'): boolean | void {
+        // print only console.error
+        return type === 'stderr';
+      },
     },
   };
 });

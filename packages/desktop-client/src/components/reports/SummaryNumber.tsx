@@ -1,22 +1,23 @@
 import React, { type Ref, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { View } from '@actual-app/components/view';
 import { debounce } from 'debounce';
 
-import { amountToCurrency } from 'loot-core/shared/util';
-
-import { useMergedRefs } from '../../hooks/useMergedRefs';
-import { useResizeObserver } from '../../hooks/useResizeObserver';
-import { PrivacyFilter } from '../PrivacyFilter';
-
 import { chartTheme } from './chart-theme';
 import { LoadingIndicator } from './LoadingIndicator';
+
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import { useMergedRefs } from '@desktop-client/hooks/useMergedRefs';
+import { useResizeObserver } from '@desktop-client/hooks/useResizeObserver';
 
 const FONT_SIZE_SCALE_FACTOR = 1.6;
 const CONTAINER_MARGIN = 8;
 
 type SummaryNumberProps = {
   value: number;
+  contentType: string;
   animate?: boolean;
   suffix?: string;
   loading?: boolean;
@@ -26,15 +27,24 @@ type SummaryNumberProps = {
 
 export function SummaryNumber({
   value,
+  contentType,
   animate = false,
   suffix = '',
   loading = true,
   initialFontSize = 14,
   fontSizeChanged,
 }: SummaryNumberProps) {
+  const { t } = useTranslation();
   const [fontSize, setFontSize] = useState<number>(initialFontSize);
   const refDiv = useRef<HTMLDivElement>(null);
-  const displayAmount = amountToCurrency(Math.abs(value)) + suffix;
+  const format = useFormat();
+
+  let displayAmount =
+    contentType === 'percentage'
+      ? format(Math.abs(value), 'number')
+      : format(Math.abs(Math.round(value)), 'financial');
+
+  displayAmount += suffix;
 
   const handleResize = debounce(() => {
     if (!refDiv.current) return;
@@ -65,7 +75,11 @@ export function SummaryNumber({
         <View
           ref={mergedRef as Ref<HTMLDivElement>}
           role="text"
-          aria-label={`${value < 0 ? 'Negative' : 'Positive'} amount: ${displayAmount}`}
+          aria-label={
+            value < 0
+              ? t('Negative amount: {{amount}}', { amount: displayAmount })
+              : t('Positive amount: {{amount}}', { amount: displayAmount })
+          }
           style={{
             alignItems: 'center',
             flexGrow: 1,

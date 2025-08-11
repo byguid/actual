@@ -26,9 +26,14 @@ export const Tooltip = ({
   const triggerRef = useRef(null);
   const [isHovered, setIsHover] = useState(false);
 
-  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const handlePointerEnter = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+
     const timeout = setTimeout(() => {
       setIsHover(true);
     }, triggerProps.delay ?? 300);
@@ -41,8 +46,10 @@ export const Tooltip = ({
       clearTimeout(hoverTimeoutRef.current);
     }
 
-    setIsHover(false);
-  }, []);
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsHover(false);
+    }, triggerProps.closeDelay ?? 0);
+  }, [triggerProps.closeDelay]);
 
   // Force closing the tooltip whenever the disablement state changes
   useEffect(() => {

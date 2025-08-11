@@ -1,23 +1,18 @@
 // @ts-strict-ignore
+import { listen } from 'loot-core/platform/client/fetch';
+import * as undo from 'loot-core/platform/client/undo';
+
+import { setAppState } from './app/appSlice';
+import { closeBudgetUI } from './budgets/budgetsSlice';
+import { closeModal, pushModal, replaceModal } from './modals/modalsSlice';
 import {
   addGenericErrorNotification,
   addNotification,
-  closeBudgetUI,
-  closeModal,
-  loadPrefs,
-  pushModal,
-  replaceModal,
-} from 'loot-core/client/actions';
-import { setAppState } from 'loot-core/client/app/appSlice';
-import {
-  getAccounts,
-  getCategories,
-  getPayees,
-} from 'loot-core/client/queries/queriesSlice';
-import * as sharedListeners from 'loot-core/client/shared-listeners';
-import { type AppStore } from 'loot-core/client/store';
-import { listen } from 'loot-core/platform/client/fetch';
-import * as undo from 'loot-core/platform/client/undo';
+} from './notifications/notificationsSlice';
+import { loadPrefs } from './prefs/prefsSlice';
+import { getAccounts, getCategories, getPayees } from './queries/queriesSlice';
+import { type AppStore } from './redux/store';
+import * as syncEvents from './sync-events';
 
 export function handleGlobalEvents(store: AppStore) {
   const unlistenServerError = listen('server-error', () => {
@@ -29,19 +24,26 @@ export function handleGlobalEvents(store: AppStore) {
     ({ orphanedIds, updatedPayeeIds }) => {
       // Right now, it prompts to merge into the first payee
       store.dispatch(
-        pushModal('merge-unused-payees', {
-          payeeIds: orphanedIds,
-          targetPayeeId: updatedPayeeIds[0],
+        pushModal({
+          modal: {
+            name: 'merge-unused-payees',
+            options: {
+              payeeIds: orphanedIds,
+              targetPayeeId: updatedPayeeIds[0],
+            },
+          },
         }),
       );
     },
   );
 
   const unlistenSchedulesOffline = listen('schedules-offline', () => {
-    store.dispatch(pushModal('schedule-posts-offline-notification'));
+    store.dispatch(
+      pushModal({ modal: { name: 'schedule-posts-offline-notification' } }),
+    );
   });
 
-  const unlistenSync = sharedListeners.listenForSyncEvent(store);
+  const unlistenSync = syncEvents.listenForSyncEvent(store);
 
   const unlistenUndo = listen('undo-event', undoState => {
     const { tables, undoTag } = undoState;
@@ -79,9 +81,9 @@ export function handleGlobalEvents(store: AppStore) {
 
           if (
             modalStack.length === 0 ||
-            modalStack[modalStack.length - 1].name !== tagged.openModal
+            modalStack[modalStack.length - 1].name !== tagged.openModal.name
           ) {
-            store.dispatch(replaceModal(tagged.openModal));
+            store.dispatch(replaceModal({ modal: tagged.openModal }));
           }
         } else {
           store.dispatch(closeModal());
@@ -104,13 +106,15 @@ export function handleGlobalEvents(store: AppStore) {
   const unlistenFallbackWriteError = listen('fallback-write-error', () => {
     store.dispatch(
       addNotification({
-        type: 'error',
-        title: 'Unable to save changes',
-        sticky: true,
-        message:
-          'This browser only supports using the app in one tab at a time, ' +
-          'and another tab has opened the app. No changes will be saved ' +
-          'from this tab; please close it and continue working in the other one.',
+        notification: {
+          type: 'error',
+          title: 'Unable to save changes',
+          sticky: true,
+          message:
+            'This browser only supports using the app in one tab at a time, ' +
+            'and another tab has opened the app. No changes will be saved ' +
+            'from this tab; please close it and continue working in the other one.',
+        },
       }),
     );
   });

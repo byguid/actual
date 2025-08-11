@@ -7,28 +7,28 @@ import { Button } from '@actual-app/components/button';
 import { FormError } from '@actual-app/components/form-error';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { InlineField } from '@actual-app/components/inline-field';
+import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { closeModal } from 'loot-core/client/actions';
-import { createAccount } from 'loot-core/client/queries/queriesSlice';
 import { toRelaxedNumber } from 'loot-core/shared/util';
 
-import * as useAccounts from '../../hooks/useAccounts';
-import { useNavigate } from '../../hooks/useNavigate';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Input } from '../common/Input';
-import { Link } from '../common/Link';
+import { Link } from '@desktop-client/components/common/Link';
 import {
   Modal,
   ModalButtons,
   ModalCloseButton,
   ModalHeader,
   ModalTitle,
-} from '../common/Modal';
-import { Checkbox } from '../forms';
-import { validateAccountName } from '../util/accountValidation';
+} from '@desktop-client/components/common/Modal';
+import { Checkbox } from '@desktop-client/components/forms';
+import { validateAccountName } from '@desktop-client/components/util/accountValidation';
+import * as useAccounts from '@desktop-client/hooks/useAccounts';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { closeModal } from '@desktop-client/modals/modalsSlice';
+import { createAccount } from '@desktop-client/queries/queriesSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 export function CreateLocalAccountModal() {
   const { t } = useTranslation();
@@ -86,14 +86,14 @@ export function CreateLocalAccountModal() {
           />
           <View>
             <Form onSubmit={onSubmit}>
-              <InlineField label="Name" width="100%">
+              <InlineField label={t('Name')} width="100%">
                 <InitialFocus>
                   <Input
                     name="name"
                     value={name}
-                    onChange={event => setName(event.target.value)}
-                    onBlur={event => {
-                      const name = event.target.value.trim();
+                    onChangeValue={setName}
+                    onUpdate={value => {
+                      const name = value.trim();
                       validateAndSetName(name);
                     }}
                     style={{ flex: 1 }}
@@ -161,14 +161,14 @@ export function CreateLocalAccountModal() {
                 </View>
               </View>
 
-              <InlineField label="Balance" width="100%">
+              <InlineField label={t('Balance')} width="100%">
                 <Input
                   name="balance"
                   inputMode="decimal"
                   value={balance}
-                  onChange={event => setBalance(event.target.value)}
-                  onBlur={event => {
-                    const balance = event.target.value.trim();
+                  onChangeValue={setBalance}
+                  onUpdate={value => {
+                    const balance = value.trim();
                     setBalance(balance);
                     if (validateBalance(balance) && balanceError) {
                       setBalanceError(false);
@@ -179,18 +179,20 @@ export function CreateLocalAccountModal() {
               </InlineField>
               {balanceError && (
                 <FormError style={{ marginLeft: 75 }}>
-                  {t('Balance must be a number')}
+                  <Trans>Balance must be a number</Trans>
                 </FormError>
               )}
 
               <ModalButtons>
-                <Button onPress={close}>{t('Back')}</Button>
+                <Button onPress={close}>
+                  <Trans>Back</Trans>
+                </Button>
                 <Button
                   type="submit"
                   variant="primary"
                   style={{ marginLeft: 10 }}
                 >
-                  {t('Create')}
+                  <Trans>Create</Trans>
                 </Button>
               </ModalButtons>
             </Form>

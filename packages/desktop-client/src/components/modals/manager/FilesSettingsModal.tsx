@@ -2,17 +2,21 @@ import React, { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { SvgPencil1 } from '@actual-app/components/icons/v2';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { loadAllFiles, pushModal } from 'loot-core/client/actions';
-
-import { useGlobalPref } from '../../../hooks/useGlobalPref';
-import { SvgPencil1 } from '../../../icons/v2';
-import { useDispatch } from '../../../redux';
-import { theme } from '../../../style';
-import { Modal, ModalCloseButton, ModalHeader } from '../../common/Modal';
+import { loadAllFiles } from '@desktop-client/budgets/budgetsSlice';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 function FileLocationSettings() {
   const [documentDir, _setDocumentDirPref] = useGlobalPref('documentDir');
@@ -29,9 +33,14 @@ function FileLocationSettings() {
       setDirChanged(true);
 
       dispatch(
-        pushModal('confirm-change-document-dir', {
-          currentBudgetDirectory: documentDir,
-          newDirectory: chosenDirectory[0],
+        pushModal({
+          modal: {
+            name: 'confirm-change-document-dir',
+            options: {
+              currentBudgetDirectory: documentDir,
+              newDirectory: chosenDirectory[0],
+            },
+          },
         }),
       );
     }

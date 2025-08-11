@@ -5,8 +5,6 @@ import userEvent from '@testing-library/user-event';
 import { format as formatDate, parse as parseDate } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
-import { SchedulesProvider } from 'loot-core/client/data-hooks/schedules';
-import { SpreadsheetProvider } from 'loot-core/client/SpreadsheetProvider';
 import {
   generateTransaction,
   generateAccount,
@@ -28,13 +26,14 @@ import {
   type TransactionEntity,
 } from 'loot-core/types/models';
 
-import { AuthProvider } from '../../auth/AuthProvider';
-import { SelectedProviderWithItems } from '../../hooks/useSelected';
-import { SplitsExpandedProvider } from '../../hooks/useSplitsExpanded';
-import { TestProvider } from '../../redux/mock';
-import { ResponsiveProvider } from '../responsive/ResponsiveProvider';
-
 import { TransactionTable } from './TransactionsTable';
+
+import { AuthProvider } from '@desktop-client/auth/AuthProvider';
+import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
+import { SelectedProviderWithItems } from '@desktop-client/hooks/useSelected';
+import { SplitsExpandedProvider } from '@desktop-client/hooks/useSplitsExpanded';
+import { SpreadsheetProvider } from '@desktop-client/hooks/useSpreadsheet';
+import { TestProvider } from '@desktop-client/redux/mock';
 
 vi.mock('loot-core/platform/client/fetch');
 vi.mock('../../hooks/useFeatureFlag', () => ({
@@ -48,23 +47,37 @@ vi.mock('../../hooks/useFeatureFlag', () => ({
 }));
 
 const accounts = [generateAccount('Bank of America')];
+vi.mock('../../hooks/useAccounts', () => ({
+  useAccounts: () => accounts,
+}));
+
 const payees: PayeeEntity[] = [
   {
     id: 'bob-id',
     name: 'Bob',
-    favorite: 1,
+    favorite: true,
   },
   {
     id: 'alice-id',
     name: 'Alice',
-    favorite: 1,
+    favorite: true,
   },
   {
     id: 'guy',
-    favorite: 0,
+    favorite: false,
     name: 'This guy on the side of the road',
   },
 ];
+vi.mock('../../hooks/usePayees', async importOriginal => {
+  const actual =
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+    await importOriginal<typeof import('../../hooks/usePayees')>();
+  return {
+    ...actual,
+    usePayees: () => payees,
+  };
+});
+
 const categoryGroups = generateCategoryGroups([
   {
     name: 'Investments and Savings',
@@ -79,6 +92,13 @@ const categoryGroups = generateCategoryGroups([
     categories: [{ name: 'Big Projects' }, { name: 'Shed' }],
   },
 ]);
+vi.mock('../../hooks/useCategories', () => ({
+  useCategories: () => ({
+    list: categoryGroups.flatMap(g => g.categories),
+    grouped: categoryGroups,
+  }),
+}));
+
 const usualGroup = categoryGroups[1];
 
 function generateTransactions(
@@ -130,13 +150,14 @@ type LiveTransactionTableProps = {
 };
 
 function LiveTransactionTable(props: LiveTransactionTableProps) {
-  const [transactions, setTransactions] = useState(props.transactions);
+  const { transactions: transactionsProp, onTransactionsChange } = props;
+
+  const [transactions, setTransactions] = useState(transactionsProp);
 
   useEffect(() => {
-    if (transactions === props.transactions) return;
-    props.onTransactionsChange?.(transactions);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transactions]);
+    if (transactions === transactionsProp) return;
+    onTransactionsChange?.(transactions);
+  }, [transactions, transactionsProp, onTransactionsChange]);
 
   const onSplit = (id: string) => {
     const { data, diff } = splitTransaction(transactions, id);
@@ -160,7 +181,7 @@ function LiveTransactionTable(props: LiveTransactionTableProps) {
     return diff.added[0].id;
   };
 
-  const onCreatePayee = () => 'id';
+  const onCreatePayee = async () => 'id';
 
   // It's important that these functions are they same instances
   // across renders. Doing so tests that the transaction table
@@ -168,38 +189,36 @@ function LiveTransactionTable(props: LiveTransactionTableProps) {
   // hook dependencies haven't changed
   return (
     <TestProvider>
-      <ResponsiveProvider>
-        <AuthProvider>
-          <SpreadsheetProvider>
-            <SchedulesProvider>
-              <SelectedProviderWithItems
-                name="transactions"
-                items={transactions}
-                fetchAllIds={() => Promise.resolve(transactions.map(t => t.id))}
-              >
-                <SplitsExpandedProvider>
-                  <TransactionTable
-                    {...props}
-                    // @ts-expect-error this will be auto-patched once TransactionTable is moved to TS
-                    transactions={transactions}
-                    loadMoreTransactions={() => {}}
-                    commonPayees={[]}
-                    payees={payees}
-                    addNotification={console.log}
-                    onSave={onSave}
-                    onSplit={onSplit}
-                    onAdd={onAdd}
-                    onAddSplit={onAddSplit}
-                    onCreatePayee={onCreatePayee}
-                    showSelection={true}
-                    allowSplitTransaction={true}
-                  />
-                </SplitsExpandedProvider>
-              </SelectedProviderWithItems>
-            </SchedulesProvider>
-          </SpreadsheetProvider>
-        </AuthProvider>
-      </ResponsiveProvider>
+      <AuthProvider>
+        <SpreadsheetProvider>
+          <SchedulesProvider>
+            <SelectedProviderWithItems
+              name="transactions"
+              items={transactions}
+              fetchAllIds={() => Promise.resolve(transactions.map(t => t.id))}
+            >
+              <SplitsExpandedProvider>
+                <TransactionTable
+                  {...props}
+                  transactions={transactions}
+                  loadMoreTransactions={() => {}}
+                  // @ts-ignore TODO:
+                  commonPayees={[]}
+                  payees={payees}
+                  addNotification={console.log}
+                  onSave={onSave}
+                  onSplit={onSplit}
+                  onAdd={onAdd}
+                  onAddSplit={onAddSplit}
+                  onCreatePayee={onCreatePayee}
+                  showSelection={true}
+                  allowSplitTransaction={true}
+                />
+              </SplitsExpandedProvider>
+            </SelectedProviderWithItems>
+          </SchedulesProvider>
+        </SpreadsheetProvider>
+      </AuthProvider>
     </TestProvider>
   );
 }
@@ -212,14 +231,23 @@ function initBasicServer() {
           return { data: payees, dependencies: [] };
         case 'accounts':
           return { data: accounts, dependencies: [] };
+        case 'transactions':
+          return {
+            data: generateTransactions(5, [6]),
+            dependencies: [],
+          };
         default:
           throw new Error(`queried unknown table: ${query.table}`);
       }
     },
-    getCell: () => ({
+    'get-cell': async () => ({
+      name: 'test-cell',
       value: 129_87,
     }),
-    'get-categories': () => ({ grouped: categoryGroups, list: categories }),
+    'get-categories': async () => ({
+      grouped: categoryGroups,
+      list: categories,
+    }),
   });
 }
 

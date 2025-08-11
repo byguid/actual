@@ -115,11 +115,13 @@ export function getValidOps(field: keyof FieldValueTypes) {
   );
 }
 
-export const ALLOCATION_METHODS = {
-  'fixed-amount': 'a fixed amount',
-  'fixed-percent': 'a fixed percent of the remainder',
-  remainder: 'an equal portion of the remainder',
-};
+export function getAllocationMethods() {
+  return {
+    'fixed-amount': t('a fixed amount'),
+    'fixed-percent': t('a fixed percent of the remainder'),
+    remainder: t('an equal portion of the remainder'),
+  };
+}
 
 export function mapField(field, opts?) {
   opts = opts || {};
@@ -140,6 +142,24 @@ export function mapField(field, opts?) {
       return t('amount (inflow)');
     case 'amount-outflow':
       return t('amount (outflow)');
+    case 'account':
+      return t('account');
+    case 'date':
+      return t('date');
+    case 'category':
+      return t('category');
+    case 'notes':
+      return t('notes');
+    case 'payee':
+      return t('payee');
+    case 'saved':
+      return t('saved');
+    case 'cleared':
+      return t('cleared');
+    case 'reconciled':
+      return t('reconciled');
+    case 'transfer':
+      return t('transfer');
     default:
       return field;
   }
@@ -162,7 +182,7 @@ export function friendlyOp(op, type?) {
     case 'contains':
       return t('contains');
     case 'hasTags':
-      return t('has tag(s)');
+      return t('has tags');
     case 'matches':
       return t('matches');
     case 'doesNotContain':
@@ -204,11 +224,22 @@ export function friendlyOp(op, type?) {
     case 'and':
       return t('and');
     case 'or':
-      return 'or';
+      return t('or');
     case 'onBudget':
-      return 'is on budget';
+      return t('is on budget');
     case 'offBudget':
-      return 'is off budget';
+      return t('is off budget');
+    default:
+      return '';
+  }
+}
+
+export function translateRuleStage(stage: string): string {
+  switch (stage) {
+    case 'pre':
+      return t('Pre');
+    case 'post':
+      return t('Post');
     default:
       return '';
   }

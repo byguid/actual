@@ -1,18 +1,20 @@
 import { useEffect } from 'react';
 
-import { getAccounts } from 'loot-core/client/queries/queriesSlice';
+import { useInitialMount } from './useInitialMount';
 
-import { useSelector, useDispatch } from '../redux';
+import { getAccounts } from '@desktop-client/queries/queriesSlice';
+import { useSelector, useDispatch } from '@desktop-client/redux';
 
 export function useAccounts() {
   const dispatch = useDispatch();
   const accountsLoaded = useSelector(state => state.queries.accountsLoaded);
+  const isInitialMount = useInitialMount();
 
   useEffect(() => {
-    if (!accountsLoaded) {
+    if (isInitialMount && !accountsLoaded) {
       dispatch(getAccounts());
     }
-  }, []);
+  }, [accountsLoaded, dispatch, isInitialMount]);
 
   return useSelector(state => state.queries.accounts);
 }

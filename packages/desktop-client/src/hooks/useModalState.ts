@@ -1,9 +1,7 @@
 import { useCallback } from 'react';
 
-import { popModal } from 'loot-core/client/actions';
-import { type Modal } from 'loot-core/client/state-types/modals';
-
-import { useSelector, useDispatch } from '../redux';
+import { type Modal, popModal } from '@desktop-client/modals/modalsSlice';
+import { useSelector, useDispatch } from '@desktop-client/redux';
 
 type ModalState = {
   onClose: () => void;

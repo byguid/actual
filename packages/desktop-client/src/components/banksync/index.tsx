@@ -1,24 +1,24 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
 
-import { pushModal } from 'loot-core/src/client/actions/modals';
 import {
   type BankSyncProviders,
   type AccountEntity,
 } from 'loot-core/types/models';
 
-import { useAccounts } from '../../hooks/useAccounts';
-import { useGlobalPref } from '../../hooks/useGlobalPref';
-import { useDispatch } from '../../redux';
-import { MOBILE_NAV_HEIGHT } from '../mobile/MobileNavTabs';
-import { Page } from '../Page';
-import { useResponsive } from '../responsive/ResponsiveProvider';
-
 import { AccountsHeader } from './AccountsHeader';
 import { AccountsList } from './AccountsList';
+
+import { MOBILE_NAV_HEIGHT } from '@desktop-client/components/mobile/MobileNavTabs';
+import { Page } from '@desktop-client/components/Page';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 type SyncProviders = BankSyncProviders | 'unlinked';
 
@@ -28,6 +28,7 @@ const useSyncSourceReadable = () => {
   const syncSourceReadable: Record<SyncProviders, string> = {
     goCardless: 'GoCardless',
     simpleFin: 'SimpleFIN',
+    pluggyai: 'Pluggy.ai',
     unlinked: t('Unlinked'),
   };
 
@@ -80,13 +81,25 @@ export function BankSync() {
     switch (action) {
       case 'edit':
         dispatch(
-          pushModal('synced-account-edit', {
-            account,
+          pushModal({
+            modal: {
+              name: 'synced-account-edit',
+              options: {
+                account,
+              },
+            },
           }),
         );
         break;
       case 'link':
-        dispatch(pushModal('add-account', { upgradingAccountId: account.id }));
+        dispatch(
+          pushModal({
+            modal: {
+              name: 'add-account',
+              options: { upgradingAccountId: account.id },
+            },
+          }),
+        );
         break;
       default:
         break;
@@ -115,7 +128,7 @@ export function BankSync() {
         )}
         {Object.entries(groupedAccounts).map(([syncProvider, accounts]) => {
           return (
-            <View key={syncProvider}>
+            <View key={syncProvider} style={{ minHeight: 'initial' }}>
               {Object.keys(groupedAccounts).length > 1 && (
                 <Text
                   style={{ fontWeight: 500, fontSize: 20, margin: '.5em 0' }}

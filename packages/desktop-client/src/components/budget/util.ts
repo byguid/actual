@@ -2,9 +2,9 @@
 import { type CSSProperties } from 'react';
 
 import { styles } from '@actual-app/components/styles';
+import { theme } from '@actual-app/components/theme';
 import { t } from 'i18next';
 
-import { type useSpreadsheet } from 'loot-core/client/SpreadsheetProvider';
 import { send } from 'loot-core/platform/client/fetch';
 import * as monthUtils from 'loot-core/shared/months';
 import { type Handlers } from 'loot-core/types/handlers';
@@ -14,28 +14,24 @@ import {
 } from 'loot-core/types/models';
 import { type SyncedPrefs } from 'loot-core/types/prefs';
 
-import { theme } from '../../style';
-import { type DropPosition } from '../sort';
-
 import { getValidMonthBounds } from './MonthsContext';
+
+import { type DropPosition } from '@desktop-client/components/sort';
+import { type useSpreadsheet } from '@desktop-client/hooks/useSpreadsheet';
 
 export function addToBeBudgetedGroup(groups: CategoryGroupEntity[]) {
   return [
     {
-      id: 'to-be-budgeted',
-      name: t('To Be Budgeted'),
+      id: 'to-budget',
+      name: t('To Budget'),
       categories: [
         {
-          id: 'to-be-budgeted',
-          name: t('To Be Budgeted'),
-          cat_group: 'to-be-budgeted',
-          group: {
-            id: 'to-be-budgeted',
-            name: t('To Be Budgeted'),
-          },
+          id: 'to-budget',
+          name: t('To Budget'),
+          group: 'to-budget',
         },
       ],
-    },
+    } as CategoryGroupEntity,
     ...groups,
   ];
 }
@@ -64,7 +60,7 @@ export function separateGroups(categoryGroups: CategoryGroupEntity[]) {
   ] as const;
 }
 
-export function makeAmountGrey(value: number | string): CSSProperties {
+export function makeAmountGrey(value: number | string | null): CSSProperties {
   return value === 0 || value === '0' || value === '' || value == null
     ? { color: theme.tableTextSubdued }
     : null;
@@ -72,8 +68,8 @@ export function makeAmountGrey(value: number | string): CSSProperties {
 
 export function makeBalanceAmountStyle(
   value: number,
-  goalValue?: number,
-  budgetedValue?: number,
+  goalValue?: number | null,
+  budgetedValue?: number | null,
 ) {
   if (value < 0) {
     return { color: theme.errorText };
@@ -171,7 +167,9 @@ export async function prewarmMonth(
   month: string,
 ) {
   const method: keyof Handlers =
-    budgetType === 'report' ? 'tracking-budget-month' : 'envelope-budget-month';
+    budgetType === 'tracking'
+      ? 'tracking-budget-month'
+      : 'envelope-budget-month';
 
   const values = await send(method, { month });
 

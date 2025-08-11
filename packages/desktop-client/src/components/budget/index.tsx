@@ -1,11 +1,29 @@
 // @ts-strict-ignore
-import React, { memo, useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { styles } from '@actual-app/components/styles';
 import { View } from '@actual-app/components/view';
 
-import { addNotification, pushModal } from 'loot-core/client/actions';
+import { send } from 'loot-core/platform/client/fetch';
+import * as monthUtils from 'loot-core/shared/months';
+
+import { DynamicBudgetTable } from './DynamicBudgetTable';
+import * as envelopeBudget from './envelope/EnvelopeBudgetComponents';
+import { EnvelopeBudgetProvider } from './envelope/EnvelopeBudgetContext';
+import * as trackingBudget from './tracking/TrackingBudgetComponents';
+import { TrackingBudgetProvider } from './tracking/TrackingBudgetContext';
+import { prewarmAllMonths, prewarmMonth } from './util';
+
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
+import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { SheetNameProvider } from '@desktop-client/hooks/useSheetName';
+import { useSpreadsheet } from '@desktop-client/hooks/useSpreadsheet';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { addNotification } from '@desktop-client/notifications/notificationsSlice';
 import {
   applyBudgetAction,
   createCategory,
@@ -17,25 +35,8 @@ import {
   moveCategoryGroup,
   updateCategory,
   updateGroup,
-} from 'loot-core/client/queries/queriesSlice';
-import { useSpreadsheet } from 'loot-core/client/SpreadsheetProvider';
-import { send } from 'loot-core/platform/client/fetch';
-import * as monthUtils from 'loot-core/shared/months';
-
-import { useCategories } from '../../hooks/useCategories';
-import { useGlobalPref } from '../../hooks/useGlobalPref';
-import { useLocalPref } from '../../hooks/useLocalPref';
-import { useNavigate } from '../../hooks/useNavigate';
-import { useSyncedPref } from '../../hooks/useSyncedPref';
-import { useDispatch } from '../../redux';
-import { NamespaceContext } from '../spreadsheet/NamespaceContext';
-
-import { DynamicBudgetTable } from './DynamicBudgetTable';
-import * as envelopeBudget from './envelope/EnvelopeBudgetComponents';
-import { EnvelopeBudgetProvider } from './envelope/EnvelopeBudgetContext';
-import * as trackingBudget from './tracking/TrackingBudgetComponents';
-import { TrackingBudgetProvider } from './tracking/TrackingBudgetContext';
-import { prewarmAllMonths, prewarmMonth } from './util';
+} from '@desktop-client/queries/queriesSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 type TrackingReportComponents = {
   SummaryComponent: typeof trackingBudget.BudgetSummary;
@@ -48,7 +49,7 @@ type TrackingReportComponents = {
 };
 
 type EnvelopeBudgetComponents = {
-  SummaryComponent: typeof EnvelopeBudgetSummary;
+  SummaryComponent: typeof envelopeBudget.BudgetSummary;
   ExpenseCategoryComponent: typeof envelopeBudget.ExpenseCategoryMonth;
   ExpenseGroupComponent: typeof envelopeBudget.ExpenseGroupMonth;
   IncomeCategoryComponent: typeof envelopeBudget.IncomeCategoryMonth;
@@ -78,7 +79,7 @@ function BudgetInner(props: BudgetInnerProps) {
     start: startMonth,
     end: startMonth,
   });
-  const [budgetType = 'rollover'] = useSyncedPref('budgetType');
+  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
   const [maxMonthsPref] = useGlobalPref('maxMonths');
   const maxMonths = maxMonthsPref || 1;
   const [initialized, setInitialized] = useState(false);
@@ -147,11 +148,13 @@ function BudgetInner(props: BudgetInnerProps) {
   const categoryNameAlreadyExistsNotification = name => {
     dispatch(
       addNotification({
-        type: 'error',
-        message: t(
-          'Category “{{name}}” already exists in group (it may be hidden)',
-          { name },
-        ),
+        notification: {
+          type: 'error',
+          message: t(
+            'Category “{{name}}” already exists in group (it may be hidden)',
+            { name },
+          ),
+        },
       }),
     );
   };
@@ -160,7 +163,7 @@ function BudgetInner(props: BudgetInnerProps) {
     const cats = await send('get-categories');
     const exists =
       cats.grouped
-        .filter(g => g.id === category.cat_group)[0]
+        .filter(g => g.id === category.group)[0]
         .categories.filter(
           c => c.name.toUpperCase() === category.name.toUpperCase(),
         )
@@ -176,7 +179,7 @@ function BudgetInner(props: BudgetInnerProps) {
       dispatch(
         createCategory({
           name: category.name,
-          groupId: category.cat_group,
+          groupId: category.group,
           isIncome: category.is_income,
           isHidden: category.hidden,
         }),
@@ -191,12 +194,19 @@ function BudgetInner(props: BudgetInnerProps) {
 
     if (mustTransfer) {
       dispatch(
-        pushModal('confirm-category-delete', {
-          category: id,
-          onDelete: transferCategory => {
-            if (id !== transferCategory) {
-              dispatch(deleteCategory({ id, transferId: transferCategory }));
-            }
+        pushModal({
+          modal: {
+            name: 'confirm-category-delete',
+            options: {
+              category: id,
+              onDelete: transferCategory => {
+                if (id !== transferCategory) {
+                  dispatch(
+                    deleteCategory({ id, transferId: transferCategory }),
+                  );
+                }
+              },
+            },
           },
         }),
       );
@@ -226,10 +236,15 @@ function BudgetInner(props: BudgetInnerProps) {
 
     if (mustTransfer) {
       dispatch(
-        pushModal('confirm-category-delete', {
-          group: id,
-          onDelete: transferCategory => {
-            dispatch(deleteGroup({ id, transferId: transferCategory }));
+        pushModal({
+          modal: {
+            name: 'confirm-category-delete',
+            options: {
+              group: id,
+              onDelete: transferCategory => {
+                dispatch(deleteGroup({ id, transferId: transferCategory }));
+              },
+            },
           },
         }),
       );
@@ -316,7 +331,7 @@ function BudgetInner(props: BudgetInnerProps) {
   }
 
   let table;
-  if (budgetType === 'report') {
+  if (budgetType === 'tracking') {
     table = (
       <TrackingBudgetProvider
         summaryCollapsed={summaryCollapsed}
@@ -373,17 +388,11 @@ function BudgetInner(props: BudgetInnerProps) {
   }
 
   return (
-    <NamespaceContext.Provider value={monthUtils.sheetForMonth(startMonth)}>
+    <SheetNameProvider name={monthUtils.sheetForMonth(startMonth)}>
       <View style={{ flex: 1 }}>{table}</View>
-    </NamespaceContext.Provider>
+    </SheetNameProvider>
   );
 }
-
-const EnvelopeBudgetSummary = memo<{ month: string }>(props => {
-  return <envelopeBudget.BudgetSummary {...props} />;
-});
-
-EnvelopeBudgetSummary.displayName = 'EnvelopeBudgetSummary';
 
 export function Budget() {
   const trackingComponents = useMemo<TrackingReportComponents>(
@@ -401,7 +410,7 @@ export function Budget() {
 
   const envelopeComponents = useMemo<EnvelopeBudgetComponents>(
     () => ({
-      SummaryComponent: EnvelopeBudgetSummary,
+      SummaryComponent: envelopeBudget.BudgetSummary,
       ExpenseCategoryComponent: envelopeBudget.ExpenseCategoryMonth,
       ExpenseGroupComponent: envelopeBudget.ExpenseGroupMonth,
       IncomeCategoryComponent: envelopeBudget.IncomeCategoryMonth,

@@ -1,26 +1,38 @@
 import React from 'react';
 
-import { Text } from '@actual-app/components/text';
-import { View } from '@actual-app/components/view';
-
-import { type ScheduleStatusType } from 'loot-core/client/data-hooks/schedules';
-import { titleFirst } from 'loot-core/shared/util';
-
 import {
   SvgAlertTriangle,
-  SvgCalendar,
+  SvgCalendar3,
   SvgCheckCircle1,
   SvgCheckCircleHollow,
   SvgEditSkull1,
   SvgFavoriteStar,
   SvgLockClosed,
   SvgValidationCheck,
-} from '../../icons/v2';
-import { theme } from '../../style';
+} from '@actual-app/components/icons/v2';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
+
+import { getStatusLabel } from 'loot-core/shared/schedules';
+import { titleFirst } from 'loot-core/shared/util';
+
+import { type ScheduleStatusType } from '@desktop-client/hooks/useSchedules';
 
 // Consists of Schedule Statuses + Transaction statuses
-type StatusTypes = ScheduleStatusType | 'cleared' | 'pending' | 'reconciled';
-export function getStatusProps(status: StatusTypes) {
+export type StatusTypes =
+  | ScheduleStatusType
+  | 'cleared'
+  | 'pending'
+  | 'reconciled';
+
+export const defaultStatusProps = {
+  color: theme.buttonNormalDisabledText,
+  backgroundColor: theme.tableRowHeaderBackground,
+  Icon: SvgCheckCircleHollow,
+};
+
+export function getStatusProps(status: StatusTypes | null | undefined) {
   switch (status) {
     case 'missed':
       return {
@@ -38,7 +50,7 @@ export function getStatusProps(status: StatusTypes) {
       return {
         color: theme.upcomingText,
         backgroundColor: theme.upcomingBackground,
-        Icon: SvgCalendar,
+        Icon: SvgCalendar3,
       };
     case 'paid':
       return {
@@ -56,13 +68,13 @@ export function getStatusProps(status: StatusTypes) {
       return {
         color: theme.noticeTextLight,
         backgroundColor: theme.noticeBackgroundLight,
-        Icon: SvgCalendar,
+        Icon: SvgCalendar3,
       };
     case 'scheduled':
       return {
         color: theme.tableRowHeaderText,
         backgroundColor: theme.tableRowHeaderBackground,
-        Icon: SvgCalendar,
+        Icon: SvgCalendar3,
       };
     case 'cleared':
       return {
@@ -77,11 +89,7 @@ export function getStatusProps(status: StatusTypes) {
         Icon: SvgLockClosed,
       };
     default:
-      return {
-        color: theme.buttonNormalDisabledText,
-        backgroundColor: theme.tableRowHeaderBackground,
-        Icon: SvgCheckCircleHollow,
-      };
+      return defaultStatusProps;
   }
 }
 
@@ -106,7 +114,9 @@ export function StatusBadge({ status }: { status: ScheduleStatusType }) {
           marginRight: 7,
         }}
       />
-      <Text style={{ lineHeight: '1em' }}>{titleFirst(status)}</Text>
+      <Text style={{ lineHeight: '1em' }}>
+        {titleFirst(getStatusLabel(status))}
+      </Text>
     </View>
   );
 }

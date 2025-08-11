@@ -3,21 +3,21 @@ import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { Input } from '@actual-app/components/input';
 import { Stack } from '@actual-app/components/stack';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { type CustomReportEntity } from 'loot-core/types/models/reports';
+import { type CustomReportEntity } from 'loot-core/types/models';
 
-import { theme } from '../../style';
-import { Input } from '../common/Input';
-import { FormField, FormLabel } from '../forms';
+import { FormField, FormLabel } from '@desktop-client/components/forms';
 
 type SaveReportNameProps = {
   menuItem: string;
   name: string;
   setName: (name: string) => void;
-  inputRef: RefObject<HTMLInputElement>;
+  inputRef: RefObject<HTMLInputElement | null>;
   onAddUpdate: ({
     menuChoice,
     reportData,
@@ -73,7 +73,7 @@ export function SaveReportName({
               <Input
                 value={name}
                 id="name-field"
-                inputRef={inputRef}
+                ref={inputRef}
                 onChangeValue={setName}
                 style={{ marginTop: 10 }}
               />

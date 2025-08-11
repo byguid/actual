@@ -8,8 +8,9 @@
     "moduleResolution": "node10",
     "noEmit": false,
     "declaration": true,
-    "outDir": "build"
+    "outDir": "build",
+    "rootDir": ".."
   },
   "include": ["."],
-  "exclude": ["**/node_modules/*", "build/**/*"]
+  "exclude": ["**/node_modules/*", "build/**/*", "e2e/**/*"]
 }

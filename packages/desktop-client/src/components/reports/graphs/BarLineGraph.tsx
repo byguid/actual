@@ -16,11 +16,10 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-import { amountToCurrencyNoDecimal } from 'loot-core/shared/util';
-
-import { PrivacyFilter } from '../../PrivacyFilter';
-import { Container } from '../Container';
-import { numberFormatterTooltip } from '../numberFormatter';
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { Container } from '@desktop-client/components/reports/Container';
+import { numberFormatterTooltip } from '@desktop-client/components/reports/numberFormatter';
+import { useFormat } from '@desktop-client/hooks/useFormat';
 
 type PayloadItem = {
   payload: {
@@ -89,8 +88,9 @@ export function BarLineGraph({
   compact,
   showTooltip = true,
 }: BarLineGraphProps) {
+  const format = useFormat();
   const tickFormatter = tick => {
-    return `${amountToCurrencyNoDecimal(Math.round(tick))}`; // Formats the tick values as strings with commas
+    return `${format(Math.round(tick), 'financial')}`; // Formats the tick values as strings with commas
   };
 
   return (
@@ -118,12 +118,10 @@ export function BarLineGraph({
                     isAnimationActive={false}
                   />
                 )}
+                {!compact && <CartesianGrid strokeDasharray="3 3" />}
+                {!compact && <XAxis dataKey="x" />}
                 {!compact && (
-                  <>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="x" />
-                    <YAxis dataKey="y" tickFormatter={tickFormatter} />
-                  </>
+                  <YAxis dataKey="y" tickFormatter={tickFormatter} />
                 )}
                 <Bar type="monotone" dataKey="y" fill="#8884d8" />
                 <Line type="monotone" dataKey="y" stroke="#8884d8" />

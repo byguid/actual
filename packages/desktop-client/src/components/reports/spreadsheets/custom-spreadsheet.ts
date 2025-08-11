@@ -1,33 +1,20 @@
 import * as d from 'date-fns';
 
-import { runQuery } from 'loot-core/client/query-helpers';
-import { type useSpreadsheet } from 'loot-core/client/SpreadsheetProvider';
 import { send } from 'loot-core/platform/client/fetch';
 import * as monthUtils from 'loot-core/shared/months';
-import { integerToAmount } from 'loot-core/shared/util';
 import {
   type AccountEntity,
   type PayeeEntity,
   type CategoryEntity,
   type RuleConditionEntity,
   type CategoryGroupEntity,
-} from 'loot-core/types/models';
-import {
   type balanceTypeOpType,
   type sortByOpType,
   type DataEntity,
   type GroupedEntity,
   type IntervalEntity,
-} from 'loot-core/types/models/reports';
+} from 'loot-core/types/models';
 import { type SyncedPrefs } from 'loot-core/types/prefs';
-
-import {
-  categoryLists,
-  groupBySelections,
-  type QueryDataEntity,
-  ReportOptions,
-  type UncategorizedEntity,
-} from '../ReportOptions';
 
 import { calculateLegend } from './calculateLegend';
 import { filterEmptyRows } from './filterEmptyRows';
@@ -35,6 +22,16 @@ import { filterHiddenItems } from './filterHiddenItems';
 import { makeQuery } from './makeQuery';
 import { recalculate } from './recalculate';
 import { sortData } from './sortData';
+
+import {
+  categoryLists,
+  groupBySelections,
+  type QueryDataEntity,
+  ReportOptions,
+  type UncategorizedEntity,
+} from '@desktop-client/components/reports/ReportOptions';
+import { type useSpreadsheet } from '@desktop-client/hooks/useSpreadsheet';
+import { aqlQuery } from '@desktop-client/queries/aqlQuery';
 
 export type createCustomSpreadsheetProps = {
   startDate: string;
@@ -100,7 +97,7 @@ export function createCustomSpreadsheet({
     let assets: QueryDataEntity[];
     let debts: QueryDataEntity[];
     [assets, debts] = await Promise.all([
-      runQuery(
+      aqlQuery(
         makeQuery(
           'assets',
           startDate,
@@ -110,7 +107,7 @@ export function createCustomSpreadsheet({
           filters,
         ),
       ).then(({ data }) => data),
-      runQuery(
+      aqlQuery(
         makeQuery(
           'debts',
           startDate,
@@ -215,7 +212,7 @@ export function createCustomSpreadsheet({
             stackAmounts += netAmounts;
           }
           if (stackAmounts !== 0) {
-            stacked[item.name] = integerToAmount(stackAmounts);
+            stacked[item.name] = stackAmounts; // TODO: not sure yet
           }
 
           perIntervalNetAssets =
@@ -246,11 +243,11 @@ export function createCustomSpreadsheet({
             index + 1 === intervals.length
               ? endDate
               : monthUtils.subDays(intervals[index + 1], 1),
-          totalAssets: integerToAmount(perIntervalAssets),
-          totalDebts: integerToAmount(perIntervalDebts),
-          netAssets: integerToAmount(perIntervalNetAssets),
-          netDebts: integerToAmount(perIntervalNetDebts),
-          totalTotals: integerToAmount(perIntervalTotals),
+          totalAssets: perIntervalAssets,
+          totalDebts: perIntervalDebts,
+          netAssets: perIntervalNetAssets,
+          netDebts: perIntervalNetDebts,
+          totalTotals: perIntervalTotals,
         });
 
         return arr;
@@ -295,11 +292,11 @@ export function createCustomSpreadsheet({
       legend,
       startDate,
       endDate,
-      totalAssets: integerToAmount(totalAssets),
-      totalDebts: integerToAmount(totalDebts),
-      netAssets: integerToAmount(netAssets),
-      netDebts: integerToAmount(netDebts),
-      totalTotals: integerToAmount(totalAssets + totalDebts),
+      totalAssets,
+      totalDebts,
+      netAssets,
+      netDebts,
+      totalTotals: totalAssets + totalDebts,
     });
     setDataCheck?.(true);
   };

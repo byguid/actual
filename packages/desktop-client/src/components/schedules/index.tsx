@@ -2,20 +2,20 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { pushModal } from 'loot-core/client/actions';
-import { useSchedules } from 'loot-core/client/data-hooks/schedules';
 import { send } from 'loot-core/platform/client/fetch';
 import { q } from 'loot-core/shared/query';
 import { type ScheduleEntity } from 'loot-core/types/models';
 
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Search } from '../common/Search';
-import { Page } from '../Page';
-
 import { type ScheduleItemAction, SchedulesTable } from './SchedulesTable';
+
+import { Search } from '@desktop-client/components/common/Search';
+import { Page } from '@desktop-client/components/Page';
+import { useSchedules } from '@desktop-client/hooks/useSchedules';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 export function Schedules() {
   const { t } = useTranslation();
@@ -25,21 +25,23 @@ export function Schedules() {
 
   const onEdit = useCallback(
     (id: ScheduleEntity['id']) => {
-      dispatch(pushModal('schedule-edit', { id }));
+      dispatch(
+        pushModal({ modal: { name: 'schedule-edit', options: { id } } }),
+      );
     },
     [dispatch],
   );
 
   const onAdd = useCallback(() => {
-    dispatch(pushModal('schedule-edit'));
+    dispatch(pushModal({ modal: { name: 'schedule-edit', options: {} } }));
   }, [dispatch]);
 
   const onDiscover = useCallback(() => {
-    dispatch(pushModal('schedules-discover'));
+    dispatch(pushModal({ modal: { name: 'schedules-discover' } }));
   }, [dispatch]);
 
   const onChangeUpcomingLength = useCallback(() => {
-    dispatch(pushModal('schedules-upcoming-length'));
+    dispatch(pushModal({ modal: { name: 'schedules-upcoming-length' } }));
   }, [dispatch]);
 
   const onAction = useCallback(
@@ -47,6 +49,9 @@ export function Schedules() {
       switch (name) {
         case 'post-transaction':
           await send('schedule/post-transaction', { id });
+          break;
+        case 'post-transaction-today':
+          await send('schedule/post-transaction', { id, today: true });
           break;
         case 'skip':
           await send('schedule/skip-next-date', { id });

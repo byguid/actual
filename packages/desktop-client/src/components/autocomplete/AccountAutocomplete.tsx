@@ -8,19 +8,19 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { styles } from '@actual-app/components/styles';
 import { TextOneLine } from '@actual-app/components/text-one-line';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { css, cx } from '@emotion/css';
 
 import { type AccountEntity } from 'loot-core/types/models';
 
-import { useAccounts } from '../../hooks/useAccounts';
-import { theme } from '../../style';
-import { useResponsive } from '../responsive/ResponsiveProvider';
-
 import { Autocomplete } from './Autocomplete';
 import { ItemHeader } from './ItemHeader';
+
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
 
 type AccountAutocompleteItem = AccountEntity;
 
@@ -101,6 +101,7 @@ type AccountAutocompleteProps = ComponentProps<
 > & {
   embedded?: boolean;
   includeClosedAccounts?: boolean;
+  hiddenAccounts?: AccountEntity['id'][];
   renderAccountItemGroupHeader?: (
     props: ComponentPropsWithoutRef<typeof ItemHeader>,
   ) => ReactElement<typeof ItemHeader>;
@@ -116,6 +117,7 @@ export function AccountAutocomplete({
   renderAccountItemGroupHeader,
   renderAccountItem,
   closeOnBlur,
+  hiddenAccounts,
   ...props
 }: AccountAutocompleteProps) {
   const accounts = useAccounts() || [];
@@ -124,7 +126,10 @@ export function AccountAutocomplete({
   //then sort by closed, then offbudget
   const accountSuggestions: AccountAutocompleteItem[] = accounts
     .filter(item => {
-      return includeClosedAccounts ? item : !item.closed;
+      return (
+        (includeClosedAccounts ? item : !item.closed) &&
+        !hiddenAccounts?.includes(item.id)
+      );
     })
     .sort(
       (a, b) =>

@@ -30,12 +30,16 @@ export { app as handlers };
 // /login
 
 app.get('/needs-bootstrap', (req, res) => {
+  const availableLoginMethods = listLoginMethods();
   res.send({
     status: 'ok',
     data: {
       bootstrapped: !needsBootstrap(),
-      loginMethod: getLoginMethod(),
-      availableLoginMethods: listLoginMethods(),
+      loginMethod:
+        availableLoginMethods.length === 1
+          ? availableLoginMethods[0].method
+          : getLoginMethod(),
+      availableLoginMethods,
       multiuser: getActiveLoginMethod() === 'openid',
     },
   });
@@ -80,19 +84,22 @@ app.post('/login', async (req, res) => {
       break;
     }
     case 'openid': {
-      if (!isValidRedirectUrl(req.body.return_url)) {
+      if (!isValidRedirectUrl(req.body.returnUrl)) {
         res
           .status(400)
           .send({ status: 'error', reason: 'Invalid redirect URL' });
         return;
       }
 
-      const { error, url } = await loginWithOpenIdSetup(req.body.return_url);
+      const { error, url } = await loginWithOpenIdSetup(
+        req.body.returnUrl,
+        req.body.password,
+      );
       if (error) {
         res.status(400).send({ status: 'error', reason: error });
         return;
       }
-      res.send({ status: 'ok', data: { redirect_url: url } });
+      res.send({ status: 'ok', data: { returnUrl: url } });
       return;
     }
 

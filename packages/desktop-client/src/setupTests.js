@@ -1,6 +1,6 @@
-import { resetMockStore } from 'loot-core/client/store/mock';
-
+import '@testing-library/jest-dom';
 import { installPolyfills } from './polyfills';
+import { resetMockStore } from './redux/mock';
 
 installPolyfills();
 
@@ -20,7 +20,7 @@ global.__resetWorld = () => {
 };
 
 process.on('unhandledRejection', reason => {
-  console.log('REJECTION', reason);
+  console.error('REJECTION', reason);
 });
 
 global.afterEach(() => {

@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { captureException, captureBreadcrumb } from '../../exceptions';
 import * as undo from '../undo';
 
-import type * as T from '.';
+import type * as T from './index-types';
 
 const replyHandlers = new Map();
 const listeners = new Map();
@@ -107,6 +107,9 @@ function connectWorker(worker, onOpen, onError) {
       });
       onOpen();
     } else if (msg.type === 'app-init-failure') {
+      globalWorker.postMessage({
+        name: '__app-init-failure-acknowledged',
+      });
       onError(msg);
     } else if (msg.type === 'capture-exception') {
       captureException(
@@ -151,10 +154,9 @@ export const init: T.Init = async function (worker) {
 };
 
 export const send: T.Send = function (
-  name,
-  args,
-  { catchErrors = false } = {},
-) {
+  ...params: Parameters<T.Send>
+): ReturnType<T.Send> {
+  const [name, args, { catchErrors = false } = {}] = params;
   return new Promise((resolve, reject) => {
     const id = uuidv4();
 
@@ -171,8 +173,7 @@ export const send: T.Send = function (
     } else {
       globalWorker.postMessage(message);
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as any;
+  });
 };
 
 export const sendCatch: T.SendCatch = function (name, args) {
@@ -198,6 +199,6 @@ export const unlisten: T.Unlisten = function (name) {
   listeners.set(name, []);
 };
 
-export const clearServer: T.ClearServer = async function () {
-  //
-};
+export const initServer: T.InitServer = async function () {};
+export const serverPush: T.ServerPush = async function () {};
+export const clearServer: T.ClearServer = async function () {};

@@ -3,16 +3,15 @@ import { Trans } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { Text } from '@actual-app/components/text';
-
-import { pushModal } from 'loot-core/client/actions';
-
-import { useMetadataPref } from '../../hooks/useMetadataPref';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Link } from '../common/Link';
-import { useServerURL } from '../ServerContext';
+import { theme } from '@actual-app/components/theme';
 
 import { Setting } from './UI';
+
+import { Link } from '@desktop-client/components/common/Link';
+import { useServerURL } from '@desktop-client/components/ServerContext';
+import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 export function EncryptionSettings() {
   const dispatch = useDispatch();
@@ -22,7 +21,11 @@ export function EncryptionSettings() {
   const missingCryptoAPI = !(window.crypto && crypto.subtle);
 
   function onChangeKey() {
-    dispatch(pushModal('create-encryption-key', { recreate: true }));
+    dispatch(
+      pushModal({
+        modal: { name: 'create-encryption-key', options: { recreate: true } },
+      }),
+    );
   }
 
   return encryptKeyId ? (
@@ -78,7 +81,15 @@ export function EncryptionSettings() {
   ) : serverURL ? (
     <Setting
       primaryAction={
-        <Button onPress={() => dispatch(pushModal('create-encryption-key'))}>
+        <Button
+          onPress={() =>
+            dispatch(
+              pushModal({
+                modal: { name: 'create-encryption-key', options: {} },
+              }),
+            )
+          }
+        >
           <Trans>Enable encryption</Trans>
         </Button>
       }

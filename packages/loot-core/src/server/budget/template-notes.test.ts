@@ -1,5 +1,4 @@
 import * as db from '../db';
-import { Schedule } from '../db/types';
 
 import {
   CategoryWithTemplateNote,
@@ -9,28 +8,26 @@ import {
 } from './statements';
 import { checkTemplates, storeTemplates } from './template-notes';
 
-jest.mock('../db');
-jest.mock('./statements');
+vi.mock('../db');
+vi.mock('./statements');
 
 function mockGetTemplateNotesForCategories(
   templateNotes: CategoryWithTemplateNote[],
 ) {
-  (getCategoriesWithTemplateNotes as jest.Mock).mockResolvedValue(
-    templateNotes,
-  );
+  vi.mocked(getCategoriesWithTemplateNotes).mockResolvedValue(templateNotes);
 }
 
-function mockGetActiveSchedules(schedules: Schedule[]) {
-  (getActiveSchedules as jest.Mock).mockResolvedValue(schedules);
+function mockGetActiveSchedules(schedules: db.DbSchedule[]) {
+  vi.mocked(getActiveSchedules).mockResolvedValue(schedules);
 }
 
 function mockDbUpdate() {
-  (db.update as jest.Mock).mockResolvedValue(undefined);
+  vi.mocked(db.update).mockResolvedValue(undefined);
 }
 
 describe('storeTemplates', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const testCases = [
@@ -105,7 +102,7 @@ describe('storeTemplates', () => {
       ],
       expectedTemplates: [
         {
-          type: 'simple',
+          type: 'goal',
           amount: 10,
           priority: null,
           directive: 'goal',
@@ -156,7 +153,7 @@ describe('storeTemplates', () => {
 
 describe('checkTemplates', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const testCases = [
@@ -277,7 +274,7 @@ describe('checkTemplates', () => {
   );
 });
 
-function mockSchedules(): Schedule[] {
+function mockSchedules(): db.DbSchedule[] {
   return [
     {
       id: 'mock-schedule-1',

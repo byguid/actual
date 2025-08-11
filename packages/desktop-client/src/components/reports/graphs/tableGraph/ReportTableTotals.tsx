@@ -8,14 +8,10 @@ import React, {
 import { useTranslation } from 'react-i18next';
 
 import { styles } from '@actual-app/components/styles';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import {
-  type GroupedEntity,
-  type DataEntity,
-} from 'loot-core/types/models/reports';
-
-import { theme } from '../../../../style';
+import { type GroupedEntity, type DataEntity } from 'loot-core/types/models';
 
 import { type renderTotalsProps } from './ReportTable';
 
@@ -51,7 +47,7 @@ function RenderTotalsRow({
 type ReportTableTotalsProps = {
   data: DataEntity;
   mode: string;
-  totalScrollRef: RefObject<HTMLDivElement>;
+  totalScrollRef: RefObject<HTMLDivElement | null>;
   compact: boolean;
   style?: CSSProperties;
   renderTotals: (arg: renderTotalsProps) => ReactNode;
@@ -97,8 +93,8 @@ export function ReportTableTotals({
     borderTopWidth: 1,
     borderColor: theme.tableBorder,
     justifyContent: 'center',
-    color: theme.tableHeaderText,
-    backgroundColor: theme.tableHeaderBackground,
+    color: theme.tableRowHeaderText,
+    backgroundColor: theme.tableRowHeaderBackground,
     fontWeight: 600,
     ...style,
   };

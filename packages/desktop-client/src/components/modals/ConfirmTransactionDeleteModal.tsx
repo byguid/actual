@@ -1,24 +1,29 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Paragraph } from '@actual-app/components/paragraph';
 import { styles } from '@actual-app/components/styles';
 import { View } from '@actual-app/components/view';
 
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { useResponsive } from '../responsive/ResponsiveProvider';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 
-type ConfirmTransactionDeleteProps = {
-  message?: string;
-  onConfirm: () => void;
-};
+type ConfirmTransactionDeleteModalProps = Extract<
+  ModalType,
+  { name: 'confirm-transaction-delete' }
+>['options'];
 
 export function ConfirmTransactionDeleteModal({
   message = 'Are you sure you want to delete the transaction?',
   onConfirm,
-}: ConfirmTransactionDeleteProps) {
+}: ConfirmTransactionDeleteModalProps) {
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
   const narrowButtonStyle = isNarrowWidth
@@ -50,7 +55,7 @@ export function ConfirmTransactionDeleteModal({
                 }}
                 onPress={close}
               >
-                {t('Cancel')}
+                <Trans>Cancel</Trans>
               </Button>
               <InitialFocus>
                 <Button
@@ -61,7 +66,7 @@ export function ConfirmTransactionDeleteModal({
                     close();
                   }}
                 >
-                  {t('Delete')}
+                  <Trans>Delete</Trans>
                 </Button>
               </InitialFocus>
             </View>

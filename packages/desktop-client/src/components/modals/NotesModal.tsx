@@ -1,20 +1,21 @@
 // @ts-strict-ignore
 import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { SvgCheck } from '@actual-app/components/icons/v2';
 import { View } from '@actual-app/components/view';
 
-import { useNotes } from '../../hooks/useNotes';
-import { SvgCheck } from '../../icons/v2';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { Notes } from '../Notes';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { Notes } from '@desktop-client/components/Notes';
+import { useNotes } from '@desktop-client/hooks/useNotes';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
 
-type NotesModalProps = {
-  id: string;
-  name: string;
-  onSave: (id: string, notes: string) => void;
-};
+type NotesModalProps = Extract<ModalType, { name: 'notes' }>['options'];
 
 export function NotesModal({ id, name, onSave }: NotesModalProps) {
   const { t } = useTranslation();
@@ -81,7 +82,7 @@ export function NotesModal({ id, name, onSave }: NotesModalProps) {
                 }}
               >
                 <SvgCheck width={17} height={17} style={{ paddingRight: 5 }} />
-                {t('Save notes')}
+                <Trans>Save notes</Trans>
               </Button>
             </View>
           </View>

@@ -5,43 +5,35 @@ import { Button, ButtonWithLoading } from '@actual-app/components/button';
 import { FormError } from '@actual-app/components/form-error';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { InlineField } from '@actual-app/components/inline-field';
+import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import {
-  addNotification,
-  duplicateBudget,
-  uniqueBudgetName,
-  validateBudgetName,
-} from 'loot-core/client/actions';
-import { type File } from 'loot-core/types/file';
+import { send } from 'loot-core/platform/client/fetch';
 
-import { useDispatch } from '../../../redux';
-import { theme } from '../../../style';
-import { Input } from '../../common/Input';
+import { duplicateBudget } from '@desktop-client/budgets/budgetsSlice';
 import {
   Modal,
   ModalButtons,
   ModalCloseButton,
   ModalHeader,
-} from '../../common/Modal';
+} from '@desktop-client/components/common/Modal';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import { addNotification } from '@desktop-client/notifications/notificationsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
-type DuplicateFileProps = {
-  file: File;
-  managePage?: boolean;
-  loadBudget?: 'none' | 'original' | 'copy';
-  onComplete?: (event: {
-    status: 'success' | 'failed' | 'canceled';
-    error?: object;
-  }) => void;
-};
+type DuplicateFileModalProps = Extract<
+  ModalType,
+  { name: 'duplicate-budget' }
+>['options'];
 
 export function DuplicateFileModal({
   file,
   managePage,
   loadBudget = 'none',
   onComplete,
-}: DuplicateFileProps) {
+}: DuplicateFileModalProps) {
   const { t } = useTranslation();
   const fileEndingTranslation = ' - ' + t('copy');
   const [newName, setNewName] = useState(file.name + fileEndingTranslation);
@@ -83,10 +75,6 @@ export function DuplicateFileModal({
         await dispatch(
           duplicateBudget({
             id: 'id' in file ? file.id : undefined,
-            cloudId:
-              sync === 'cloudSync' && 'cloudFileId' in file
-                ? file.cloudFileId
-                : undefined,
             oldName: file.name,
             newName,
             cloudSync: sync === 'cloudSync',
@@ -96,8 +84,10 @@ export function DuplicateFileModal({
         );
         dispatch(
           addNotification({
-            type: 'message',
-            message: t('Duplicate file “{{newName}}” created.', { newName }),
+            notification: {
+              type: 'message',
+              message: t('Duplicate file “{{newName}}” created.', { newName }),
+            },
           }),
         );
         if (onComplete) onComplete({ status: 'success' });
@@ -107,8 +97,10 @@ export function DuplicateFileModal({
         else console.error('Failed to duplicate budget file:', e);
         dispatch(
           addNotification({
-            type: 'error',
-            message: t('Failed to duplicate budget file.'),
+            notification: {
+              type: 'error',
+              message: t('Failed to duplicate budget file.'),
+            },
           }),
         );
       } finally {
@@ -158,8 +150,8 @@ export function DuplicateFileModal({
                   value={newName}
                   aria-label={t('New Budget Name')}
                   aria-invalid={nameError ? 'true' : 'false'}
-                  onChange={event => setNewName(event.target.value)}
-                  onBlur={event => validateAndSetName(event.target.value)}
+                  onChangeValue={setNewName}
+                  onUpdate={validateAndSetName}
                   style={{ flex: 1 }}
                 />
               </InitialFocus>
@@ -241,4 +233,15 @@ export function DuplicateFileModal({
       )}
     </Modal>
   );
+}
+
+async function validateBudgetName(name: string): Promise<{
+  valid: boolean;
+  message?: string;
+}> {
+  return send('validate-budget-name', { name });
+}
+
+async function uniqueBudgetName(name: string): Promise<string> {
+  return send('unique-budget-name', { name });
 }

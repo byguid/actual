@@ -13,26 +13,27 @@ import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@actual-app/components/button';
 import { Stack } from '@actual-app/components/stack';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { addNotification, signOut } from 'loot-core/client/actions';
-import { pushModal } from 'loot-core/client/actions/modals';
 import { send } from 'loot-core/platform/client/fetch';
 import * as undo from 'loot-core/platform/client/undo';
-import {
-  type NewUserEntity,
-  type UserEntity,
-} from 'loot-core/types/models/user';
-
-import { SelectedProvider, useSelected } from '../../../hooks/useSelected';
-import { useDispatch } from '../../../redux';
-import { theme } from '../../../style';
-import { Link } from '../../common/Link';
-import { Search } from '../../common/Search';
-import { SimpleTable } from '../../common/SimpleTable';
+import { type NewUserEntity, type UserEntity } from 'loot-core/types/models';
 
 import { UserDirectoryHeader } from './UserDirectoryHeader';
 import { UserDirectoryRow } from './UserDirectoryRow';
+
+import { InfiniteScrollWrapper } from '@desktop-client/components/common/InfiniteScrollWrapper';
+import { Link } from '@desktop-client/components/common/Link';
+import { Search } from '@desktop-client/components/common/Search';
+import {
+  SelectedProvider,
+  useSelected,
+} from '@desktop-client/hooks/useSelected';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { addNotification } from '@desktop-client/notifications/notificationsSlice';
+import { useDispatch } from '@desktop-client/redux';
+import { signOut } from '@desktop-client/users/usersSlice';
 
 type ManageUserDirectoryContentProps = {
   isModal: boolean;
@@ -106,6 +107,8 @@ function UserDirectoryContent({
     ).slice(0, 100 + page * 50);
   }, [allUsers, filter, page]);
   const selectedInst = useSelected('manage-users', allUsers, []);
+  const selectedCount = selectedInst.items.size;
+
   const [hoveredUser, setHoveredUser] = useState(null);
 
   const onSearchChange = useCallback(
@@ -123,11 +126,13 @@ function UserDirectoryContent({
     if ('error' in loadedUsers) {
       dispatch(
         addNotification({
-          type: 'error',
-          id: 'error',
-          title: t('Error getting users'),
-          sticky: true,
-          message: getUserDirectoryErrors(loadedUsers.error),
+          notification: {
+            type: 'error',
+            id: 'error',
+            title: t('Error getting users'),
+            sticky: true,
+            message: getUserDirectoryErrors(loadedUsers.error),
+          },
         }),
       );
       setLoading(false);
@@ -166,24 +171,30 @@ function UserDirectoryContent({
       if (error === 'token-expired') {
         dispatch(
           addNotification({
-            type: 'error',
-            id: 'login-expired',
-            title: t('Login expired'),
-            sticky: true,
-            message: getUserDirectoryErrors(error),
-            button: {
-              title: t('Go to login'),
-              action: () => dispatch(signOut()),
+            notification: {
+              type: 'error',
+              id: 'login-expired',
+              title: t('Login expired'),
+              sticky: true,
+              message: getUserDirectoryErrors(error),
+              button: {
+                title: t('Go to login'),
+                action: () => {
+                  dispatch(signOut());
+                },
+              },
             },
           }),
         );
       } else {
         dispatch(
           addNotification({
-            type: 'error',
-            title: t('Something happened while deleting users'),
-            sticky: true,
-            message: getUserDirectoryErrors(error),
+            notification: {
+              type: 'error',
+              title: t('Something happened while deleting users'),
+              sticky: true,
+              message: getUserDirectoryErrors(error),
+            },
           }),
         );
       }
@@ -204,11 +215,16 @@ function UserDirectoryContent({
   const onEditUser = useCallback(
     user => {
       dispatch(
-        pushModal('edit-user', {
-          user,
-          onSave: async () => {
-            await loadUsers();
-            setLoading(false);
+        pushModal({
+          modal: {
+            name: 'edit-user',
+            options: {
+              user,
+              onSave: async () => {
+                await loadUsers();
+                setLoading(false);
+              },
+            },
           },
         }),
       );
@@ -225,11 +241,16 @@ function UserDirectoryContent({
     };
 
     dispatch(
-      pushModal('edit-user', {
-        user,
-        onSave: async () => {
-          await loadUsers();
-          setLoading(false);
+      pushModal({
+        modal: {
+          name: 'edit-user',
+          options: {
+            user,
+            onSave: async () => {
+              await loadUsers();
+              setLoading(false);
+            },
+          },
         },
       }),
     );
@@ -265,7 +286,7 @@ function UserDirectoryContent({
               </Trans>{' '}
               <Link
                 variant="external"
-                to="https://actualbudget.org/docs/budgeting/users/"
+                to="https://actualbudget.org/docs/config/multi-user/"
                 linkColor="muted"
               >
                 <Trans>Learn more</Trans>
@@ -282,11 +303,7 @@ function UserDirectoryContent({
 
         <View style={{ flex: 1 }}>
           <UserDirectoryHeader />
-          <SimpleTable
-            loadMore={loadMore}
-            // Hide the last border of the item in the table
-            style={{ marginBottom: -1 }}
-          >
+          <InfiniteScrollWrapper loadMore={loadMore}>
             {filteredUsers.length === 0 ? (
               <EmptyMessage text={t('No users')} style={{ marginTop: 15 }} />
             ) : (
@@ -298,7 +315,7 @@ function UserDirectoryContent({
                 onEditUser={onEditUser}
               />
             )}
-          </SimpleTable>
+          </InfiniteScrollWrapper>
         </View>
         <View
           style={{
@@ -311,7 +328,9 @@ function UserDirectoryContent({
           <Stack direction="row" align="center" justify="flex-end" spacing={2}>
             {selectedInst.items.size > 0 && (
               <Button onPress={onDeleteSelected}>
-                <Trans>Delete {{ count: selectedInst.items.size }} users</Trans>
+                <Trans count={selectedCount}>
+                  Delete {{ selectedCount }} users
+                </Trans>
               </Button>
             )}
             <Button variant="primary" onPress={onAddUser}>

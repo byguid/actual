@@ -3,14 +3,14 @@
 // into Actual itself. We only want to pull in the methods in that
 // case and ignore everything else; otherwise we'd be pulling in the
 // entire backend bundle from the API
+import { send } from '@actual-app/api/injected';
 import * as actual from '@actual-app/api/methods';
 import { v4 as uuidv4 } from 'uuid';
 
 import * as monthUtils from '../../shared/months';
 import { sortByKey, groupBy } from '../../shared/util';
-import { CategoryGroupEntity } from '../../types/models';
 
-import { YNAB5 } from './ynab5-types';
+import * as YNAB5 from './ynab5-types';
 
 function amountFromYnab(amount: number) {
   // ynabs multiplies amount by 1000 and actual by 100
@@ -94,6 +94,9 @@ async function importCategories(
               hidden: group.hidden,
             });
             entityIdMap.set(group.id, groupId);
+            if (group.note) {
+              send('notes-save', { id: groupId, note: group.note });
+            }
             run = false;
           } catch (e) {
             group.name = origName + '-' + count.toString();
@@ -142,6 +145,9 @@ async function importCategories(
                     hidden: cat.hidden,
                   });
                   entityIdMap.set(cat.id, id);
+                  if (cat.note) {
+                    send('notes-save', { id, note: cat.note });
+                  }
                   run = false;
                 } catch (e) {
                   cat.name = origName + '-' + count.toString();
@@ -535,16 +541,16 @@ function equalsIgnoreCase(stringa: string, stringb: string): boolean {
   );
 }
 
-function findByNameIgnoreCase(
-  categories: (YNAB5.CategoryGroup | CategoryGroupEntity)[],
+function findByNameIgnoreCase<T extends { name: string }>(
+  categories: T[],
   name: string,
 ) {
   return categories.find(cat => equalsIgnoreCase(cat.name, name));
 }
 
-function findIdByName(
-  categories: (YNAB5.CategoryGroup | CategoryGroupEntity)[],
+function findIdByName<T extends { id: string; name: string }>(
+  categories: Array<T>,
   name: string,
 ) {
-  return findByNameIgnoreCase(categories, name)?.id;
+  return findByNameIgnoreCase<T>(categories, name)?.id;
 }

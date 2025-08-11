@@ -4,38 +4,39 @@ import { Form } from 'react-aria-components';
 import { useTranslation, Trans } from 'react-i18next';
 
 import { ButtonWithLoading } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { InitialFocus } from '@actual-app/components/initial-focus';
+import { Input } from '@actual-app/components/input';
 import { Paragraph } from '@actual-app/components/paragraph';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
-import { loadAllFiles, loadGlobalPrefs } from 'loot-core/client/actions';
-import { sync } from 'loot-core/client/app/appSlice';
 import { send } from 'loot-core/platform/client/fetch';
 import { getCreateKeyError } from 'loot-core/shared/errors';
 
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Input } from '../common/Input';
-import { Link } from '../common/Link';
+import { sync } from '@desktop-client/app/appSlice';
+import { loadAllFiles } from '@desktop-client/budgets/budgetsSlice';
+import { Link } from '@desktop-client/components/common/Link';
 import {
   Modal,
   ModalButtons,
   ModalCloseButton,
   ModalHeader,
-} from '../common/Modal';
-import { useResponsive } from '../responsive/ResponsiveProvider';
+} from '@desktop-client/components/common/Modal';
+import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import { loadGlobalPrefs } from '@desktop-client/prefs/prefsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
-type CreateEncryptionKeyModalProps = {
-  options: {
-    recreate?: boolean;
-  };
-};
+type CreateEncryptionKeyModalProps = Extract<
+  ModalType,
+  { name: 'create-encryption-key' }
+>['options'];
 
 export function CreateEncryptionKeyModal({
-  options = {},
+  recreate,
 }: CreateEncryptionKeyModalProps) {
   const { t } = useTranslation();
   const [password, setPassword] = useState('');
@@ -45,7 +46,7 @@ export function CreateEncryptionKeyModal({
   const { isNarrowWidth } = useResponsive();
   const dispatch = useDispatch();
 
-  const isRecreating = options.recreate;
+  const isRecreating = recreate;
 
   async function onCreateKey(close: () => void) {
     if (password !== '' && !loading) {
@@ -94,14 +95,15 @@ export function CreateEncryptionKeyModal({
                     We will generate a key based on a password and use it to
                     encrypt from now on.{' '}
                     <strong>This requires a sync reset</strong> and all other
-                    devices will have to revert to this version of your data.{' '}
+                    devices will have to revert to this version of your
+                    data.{' '}
                   </Trans>
                   <Link
                     variant="external"
                     to="https://actualbudget.org/docs/getting-started/sync/#end-to-end-encryption"
                     linkColor="purple"
                   >
-                    {t('Learn more')}
+                    <Trans>Learn more</Trans>
                   </Link>
                 </Paragraph>
                 <Paragraph>
@@ -200,7 +202,7 @@ export function CreateEncryptionKeyModal({
                     width: isNarrowWidth ? '100%' : '50%',
                     height: isNarrowWidth ? styles.mobileMinHeight : undefined,
                   }}
-                  onChange={e => setPassword(e.target.value)}
+                  onChangeValue={setPassword}
                 />
               </InitialFocus>
               <Text style={{ marginTop: 5 }}>

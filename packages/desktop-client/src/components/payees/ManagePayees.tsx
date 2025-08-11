@@ -8,35 +8,35 @@ import {
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { SvgExpandArrow, SvgSubtract } from '@actual-app/components/icons/v0';
 import { Popover } from '@actual-app/components/popover';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import memoizeOne from 'memoize-one';
 
-import { pushModal } from 'loot-core/client/actions';
 import { getNormalisedString } from 'loot-core/shared/normalisation';
 import { type Diff, groupById } from 'loot-core/shared/util';
 import { type PayeeEntity } from 'loot-core/types/models';
 
+import { PayeeMenu } from './PayeeMenu';
+import { PayeeTable } from './PayeeTable';
+
+import { Search } from '@desktop-client/components/common/Search';
+import {
+  TableHeader,
+  Cell,
+  SelectCell,
+} from '@desktop-client/components/table';
 import {
   useSelected,
   SelectedProvider,
   useSelectedDispatch,
   useSelectedItems,
-} from '../../hooks/useSelected';
-import { SvgExpandArrow } from '../../icons/v0';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Search } from '../common/Search';
-import { TableHeader, Cell, SelectCell } from '../table';
-
-import { PayeeMenu } from './PayeeMenu';
-import { PayeeTable } from './PayeeTable';
+} from '@desktop-client/hooks/useSelected';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 const getPayeesById = memoizeOne((payees: PayeeEntity[]) => groupById(payees));
-
-function plural(count: number, singleText: string, pluralText: string) {
-  return count === 1 ? singleText : pluralText;
-}
 
 function PayeeTableHeader() {
   const dispatchSelected = useSelectedDispatch();
@@ -57,6 +57,7 @@ function PayeeTableHeader() {
           exposed={true}
           focused={false}
           selected={selectedItems.size > 0}
+          icon={<SvgSubtract width={6} height={6} />}
           onSelect={e =>
             dispatchSelected({ type: 'select-all', isRangeSelect: e.shiftKey })
           }
@@ -70,7 +71,7 @@ function PayeeTableHeader() {
 type ManagePayeesProps = {
   payees: PayeeEntity[];
   ruleCounts: ComponentProps<typeof PayeeTable>['ruleCounts'];
-  orphanedPayees: PayeeEntity[];
+  orphanedPayees: Array<Pick<PayeeEntity, 'id'>>;
   initialSelectedIds: string[];
   onBatchChange: (diff: Diff<PayeeEntity>) => void;
   onViewRules: ComponentProps<typeof PayeeTable>['onViewRules'];
@@ -154,16 +155,16 @@ export const ManagePayees = ({
   function onFavorite() {
     const allFavorited = [...selected.items]
       .map(id => payeesById[id].favorite)
-      .every(f => f === 1);
+      .every(f => f);
     if (allFavorited) {
       onBatchChange({
-        updated: [...selected.items].map(id => ({ id, favorite: 0 })),
+        updated: [...selected.items].map(id => ({ id, favorite: false })),
         added: [],
         deleted: [],
       });
     } else {
       onBatchChange({
-        updated: [...selected.items].map(id => ({ id, favorite: 1 })),
+        updated: [...selected.items].map(id => ({ id, favorite: true })),
         added: [],
         deleted: [],
       });
@@ -174,16 +175,22 @@ export const ManagePayees = ({
   function onLearn() {
     const allLearnCategories = [...selected.items]
       .map(id => payeesById[id].learn_categories)
-      .every(f => f === 1);
+      .every(f => f);
     if (allLearnCategories) {
       onBatchChange({
-        updated: [...selected.items].map(id => ({ id, learn_categories: 0 })),
+        updated: [...selected.items].map(id => ({
+          id,
+          learn_categories: false,
+        })),
         added: [],
         deleted: [],
       });
     } else {
       onBatchChange({
-        updated: [...selected.items].map(id => ({ id, learn_categories: 1 })),
+        updated: [...selected.items].map(id => ({
+          id,
+          learn_categories: true,
+        })),
         added: [],
         deleted: [],
       });
@@ -199,7 +206,7 @@ export const ManagePayees = ({
   }
 
   const onChangeCategoryLearning = useCallback(() => {
-    dispatch(pushModal('payee-category-learning'));
+    dispatch(pushModal({ modal: { name: 'payee-category-learning' } }));
   }, [dispatch]);
 
   const buttonsDisabled = selected.items.size === 0;
@@ -227,9 +234,9 @@ export const ManagePayees = ({
           >
             {buttonsDisabled
               ? t('No payees selected')
-              : selected.items.size +
-                ' ' +
-                t(plural(selected.items.size, 'payee', 'payees'))}
+              : t('{{count}} payees', {
+                  count: selected.items.size,
+                })}
             <SvgExpandArrow width={8} height={8} style={{ marginLeft: 5 }} />
           </Button>
 
@@ -264,13 +271,9 @@ export const ManagePayees = ({
             >
               {orphanedOnly
                 ? t('Show all payees')
-                : t(
-                    `Show ${
-                      orphanedPayees.length === 1
-                        ? '1 unused payee'
-                        : `${orphanedPayees.length} unused payees`
-                    }`,
-                  )}
+                : t('Show {{count}} unused payees', {
+                    count: orphanedPayees.length,
+                  })}
             </Button>
           )}
         </View>
@@ -303,7 +306,7 @@ export const ManagePayees = ({
                 marginTop: 5,
               }}
             >
-              {t('No payees')}
+              <Trans>No payees</Trans>
             </View>
           ) : (
             <PayeeTable
@@ -313,7 +316,7 @@ export const ManagePayees = ({
               onUpdate={onUpdate}
               onViewRules={onViewRules}
               onCreateRule={onCreateRule}
-              onDelete={id => onDelete([{ id }])}
+              onDelete={ids => onDelete(ids.map(id => ({ id })))}
             />
           )}
         </View>

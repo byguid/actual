@@ -1,32 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Trans } from 'react-i18next';
 
-import { Button } from '@actual-app/components/button';
+import { ButtonWithLoading } from '@actual-app/components/button';
 import { Text } from '@actual-app/components/text';
 
-import { useSyncedPref } from '../../hooks/useSyncedPref';
-import { Link } from '../common/Link';
+import { send } from 'loot-core/platform/client/fetch';
 
 import { Setting } from './UI';
 
-export function BudgetTypeSettings() {
-  const [budgetType = 'rollover', setBudgetType] = useSyncedPref('budgetType');
+import { Link } from '@desktop-client/components/common/Link';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 
-  function onSwitchType() {
-    const newBudgetType = budgetType === 'rollover' ? 'report' : 'rollover';
-    setBudgetType(newBudgetType);
+export function BudgetTypeSettings() {
+  const [budgetType = 'envelope', setBudgetType] = useSyncedPref('budgetType');
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function onSwitchType() {
+    setIsLoading(true);
+    try {
+      const newBudgetType = budgetType === 'envelope' ? 'tracking' : 'envelope';
+      setBudgetType(newBudgetType);
+
+      // Reset the budget cache to ensure the server-side budget system is recalculated
+      await send('reset-budget-cache');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
     <Setting
       primaryAction={
-        <Button onPress={onSwitchType}>
-          {budgetType === 'report' ? (
+        <ButtonWithLoading onPress={onSwitchType} isLoading={isLoading}>
+          {budgetType === 'tracking' ? (
             <Trans>Switch to envelope budgeting</Trans>
           ) : (
             <Trans>Switch to tracking budgeting</Trans>
           )}
-        </Button>
+        </ButtonWithLoading>
       }
     >
       <Text>

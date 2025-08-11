@@ -5,26 +5,27 @@ import React, {
   useCallback,
   useState,
 } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { NavLink } from 'react-router';
 import { useSpring, animated, config } from 'react-spring';
 
-import { styles } from '@actual-app/components/styles';
-import { View } from '@actual-app/components/view';
-import { useDrag } from '@use-gesture/react';
-
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import {
   SvgAdd,
   SvgCog,
   SvgPiggyBank,
+  SvgReports,
   SvgStoreFront,
   SvgTuning,
   SvgWallet,
-} from '../../icons/v1';
-import { SvgReports } from '../../icons/v1/Reports';
-import { SvgCalendar } from '../../icons/v2';
-import { theme } from '../../style';
-import { useResponsive } from '../responsive/ResponsiveProvider';
-import { useScrollListener } from '../ScrollProvider';
+} from '@actual-app/components/icons/v1';
+import { SvgCalendar3 } from '@actual-app/components/icons/v2';
+import { styles } from '@actual-app/components/styles';
+import { theme } from '@actual-app/components/theme';
+import { View } from '@actual-app/components/view';
+import { useDrag } from '@use-gesture/react';
+
+import { useScrollListener } from '@desktop-client/components/ScrollProvider';
 
 const COLUMN_COUNT = 3;
 const PILL_HEIGHT = 15;
@@ -37,6 +38,7 @@ const HIDDEN_Y = TOTAL_HEIGHT;
 export const MOBILE_NAV_HEIGHT = ROW_HEIGHT + PILL_HEIGHT;
 
 export function MobileNavTabs() {
+  const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
   const [navbarState, setNavbarState] = useState<'default' | 'open' | 'hidden'>(
     'default',
@@ -46,6 +48,7 @@ export function MobileNavTabs() {
     flex: `1 1 ${100 / COLUMN_COUNT}%`,
     height: ROW_HEIGHT,
     padding: 10,
+    maxWidth: `${100 / COLUMN_COUNT}%`,
   };
 
   const [{ y }, api] = useSpring(() => ({ y: OPEN_DEFAULT_Y }));
@@ -90,49 +93,49 @@ export function MobileNavTabs() {
 
   const navTabs = [
     {
-      name: 'Budget',
+      name: t('Budget'),
       path: '/budget',
       style: navTabStyle,
       Icon: SvgWallet,
     },
     {
-      name: 'Transaction',
+      name: t('Transaction'),
       path: '/transactions/new',
       style: navTabStyle,
       Icon: SvgAdd,
     },
     {
-      name: 'Accounts',
+      name: t('Accounts'),
       path: '/accounts',
       style: navTabStyle,
       Icon: SvgPiggyBank,
     },
     {
-      name: 'Reports',
+      name: t('Reports'),
       path: '/reports',
       style: navTabStyle,
       Icon: SvgReports,
     },
     {
-      name: 'Schedules (Soon)',
+      name: t('Schedules (Soon)'),
       path: '/schedules/soon',
       style: navTabStyle,
-      Icon: SvgCalendar,
+      Icon: SvgCalendar3,
     },
     {
-      name: 'Payees (Soon)',
+      name: t('Payees (Soon)'),
       path: '/payees/soon',
       style: navTabStyle,
       Icon: SvgStoreFront,
     },
     {
-      name: 'Rules (Soon)',
-      path: '/rules/soon',
+      name: t('Rules'),
+      path: '/rules',
       style: navTabStyle,
       Icon: SvgTuning,
     },
     {
-      name: 'Settings',
+      name: t('Settings'),
       path: '/settings',
       style: navTabStyle,
       Icon: SvgCog,
@@ -241,6 +244,7 @@ export function MobileNavTabs() {
 type NavTabIconProps = {
   width: number;
   height: number;
+  style?: CSSProperties;
 };
 
 type NavTabProps = {
@@ -263,12 +267,13 @@ function NavTab({ Icon: TabIcon, name, path, style, onClick }: NavTabProps) {
         flexDirection: 'column',
         textDecoration: 'none',
         textAlign: 'center',
+        textWrap: 'balance',
         userSelect: 'none',
         ...style,
       })}
       onClick={onClick}
     >
-      <TabIcon width={22} height={22} />
+      <TabIcon width={22} height={22} style={{ minHeight: '22px' }} />
       {name}
     </NavLink>
   );

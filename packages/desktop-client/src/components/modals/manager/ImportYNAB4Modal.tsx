@@ -9,11 +9,14 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { importBudget } from 'loot-core/client/actions/budgets';
-
-import { useNavigate } from '../../../hooks/useNavigate';
-import { useDispatch } from '../../../redux';
-import { Modal, ModalCloseButton, ModalHeader } from '../../common/Modal';
+import { importBudget } from '@desktop-client/budgets/budgetsSlice';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { useDispatch } from '@desktop-client/redux';
 
 function getErrorMessage(error: string): string {
   switch (error) {
@@ -40,7 +43,7 @@ export function ImportYNAB4Modal() {
       setImporting(true);
       setError(null);
       try {
-        await dispatch(importBudget(res[0], 'ynab4'));
+        await dispatch(importBudget({ filepath: res[0], type: 'ynab4' }));
         navigate('/budget');
       } catch (err) {
         setError(err.message);

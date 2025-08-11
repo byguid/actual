@@ -2,9 +2,11 @@ import React from 'react';
 
 import { View } from '@actual-app/components/view';
 
-import { type AccountEntity } from 'loot-core/src/types/models';
+import { type AccountEntity } from 'loot-core/types/models';
 
 import { AccountRow } from './AccountRow';
+
+import { useLocale } from '@desktop-client/hooks/useLocale';
 
 type AccountsListProps = {
   accounts: AccountEntity[];
@@ -19,12 +21,18 @@ export function AccountsList({
   onHover,
   onAction,
 }: AccountsListProps) {
+  const locale = useLocale();
+
   if (accounts.length === 0) {
     return null;
   }
 
   return (
-    <View>
+    <View
+      style={{
+        minHeight: 'initial',
+      }}
+    >
       {accounts.map(account => {
         const hovered = hoveredAccount === account.id;
 
@@ -35,6 +43,7 @@ export function AccountsList({
             hovered={hovered}
             onHover={onHover}
             onAction={onAction}
+            locale={locale}
           />
         );
       })}

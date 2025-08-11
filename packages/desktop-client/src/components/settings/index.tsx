@@ -2,31 +2,21 @@ import React, { type ReactNode, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
+import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { tokens } from '@actual-app/components/tokens';
 import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
-import { closeBudget, loadPrefs } from 'loot-core/client/actions';
 import { listen } from 'loot-core/platform/client/fetch';
 import { isElectron } from 'loot-core/shared/environment';
-
-import { useGlobalPref } from '../../hooks/useGlobalPref';
-import { useIsOutdated, useLatestVersion } from '../../hooks/useLatestVersion';
-import { useMetadataPref } from '../../hooks/useMetadataPref';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { tokens } from '../../tokens';
-import { Input } from '../common/Input';
-import { Link } from '../common/Link';
-import { FormField, FormLabel } from '../forms';
-import { MOBILE_NAV_HEIGHT } from '../mobile/MobileNavTabs';
-import { Page } from '../Page';
-import { useResponsive } from '../responsive/ResponsiveProvider';
-import { useServerVersion } from '../ServerContext';
 
 import { AuthSettings } from './AuthSettings';
 import { Backups } from './Backups';
 import { BudgetTypeSettings } from './BudgetTypeSettings';
+import { CurrencySettings } from './Currency';
 import { EncryptionSettings } from './Encryption';
 import { ExperimentalFeatures } from './Experimental';
 import { ExportBudget } from './Export';
@@ -36,6 +26,23 @@ import { RepairTransactions } from './RepairTransactions';
 import { ResetCache, ResetSync } from './Reset';
 import { ThemeSettings } from './Themes';
 import { AdvancedToggle, Setting } from './UI';
+
+import { closeBudget } from '@desktop-client/budgets/budgetsSlice';
+import { Link } from '@desktop-client/components/common/Link';
+import { FormField, FormLabel } from '@desktop-client/components/forms';
+import { MOBILE_NAV_HEIGHT } from '@desktop-client/components/mobile/MobileNavTabs';
+import { Page } from '@desktop-client/components/Page';
+import { useServerVersion } from '@desktop-client/components/ServerContext';
+import { useFeatureFlag } from '@desktop-client/hooks/useFeatureFlag';
+import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
+import {
+  useIsOutdated,
+  useLatestVersion,
+} from '@desktop-client/hooks/useLatestVersion';
+import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { loadPrefs } from '@desktop-client/prefs/prefsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 function About() {
   const version = useServerVersion();
@@ -108,6 +115,7 @@ function IDName({ children }: { children: ReactNode }) {
 function AdvancedAbout() {
   const [budgetId] = useMetadataPref('id');
   const [groupId] = useMetadataPref('groupId');
+  const { t } = useTranslation();
 
   return (
     <Setting>
@@ -126,15 +134,15 @@ function AdvancedAbout() {
       </Text>
       <Text style={{ color: theme.pageText }}>
         <Trans>
-          <IDName>Sync ID:</IDName> {{ syncId: groupId || '(none)' }}
+          <IDName>Sync ID:</IDName> {{ syncId: groupId || t('(none)') }}
         </Trans>
       </Text>
       {/* low priority todo: eliminate some or all of these, or decide when/if to show them */}
       {/* <Text>
-        <IDName>Cloud File ID:</IDName> {prefs.cloudFileId || '(none)'}
+        <IDName>Cloud File ID:</IDName> {prefs.cloudFileId || t('(none)')}
       </Text>
       <Text>
-        <IDName>User ID:</IDName> {prefs.userId || '(none)'}
+        <IDName>User ID:</IDName> {prefs.userId || t('(none)')}
       </Text> */}
     </Setting>
   );
@@ -145,6 +153,8 @@ export function Settings() {
   const [floatingSidebar] = useGlobalPref('floatingSidebar');
   const [budgetName] = useMetadataPref('budgetName');
   const dispatch = useDispatch();
+  const isCurrencyExperimentalEnabled = useFeatureFlag('currency');
+  const [_, setDefaultCurrencyCodePref] = useSyncedPref('defaultCurrencyCode');
 
   const onCloseBudget = () => {
     dispatch(closeBudget());
@@ -159,6 +169,12 @@ export function Settings() {
     return () => unlisten();
   }, [dispatch]);
 
+  useEffect(() => {
+    if (!isCurrencyExperimentalEnabled) {
+      setDefaultCurrencyCodePref('');
+    }
+  }, [isCurrencyExperimentalEnabled, setDefaultCurrencyCodePref]);
+
   const { isNarrowWidth } = useResponsive();
 
   return (
@@ -166,7 +182,6 @@ export function Settings() {
       header={t('Settings')}
       style={{
         marginInline: floatingSidebar && !isNarrowWidth ? 'auto' : 0,
-        paddingBottom: MOBILE_NAV_HEIGHT,
       }}
     >
       <View
@@ -176,6 +191,7 @@ export function Settings() {
           flexShrink: 0,
           maxWidth: 530,
           gap: 30,
+          paddingBottom: MOBILE_NAV_HEIGHT,
         }}
       >
         {isNarrowWidth && (
@@ -192,13 +208,14 @@ export function Settings() {
               />
             </FormField>
             <Button onPress={onCloseBudget}>
-              <Trans>Close budget</Trans>
+              <Trans>Switch file</Trans>
             </Button>
           </View>
         )}
         <About />
         <ThemeSettings />
         <FormatSettings />
+        {isCurrencyExperimentalEnabled && <CurrencySettings />}
         <LanguageSettings />
         <AuthSettings />
         <EncryptionSettings />

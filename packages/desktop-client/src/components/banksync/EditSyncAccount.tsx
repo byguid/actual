@@ -2,27 +2,38 @@ import React, { useMemo, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { SvgQuestion } from '@actual-app/components/icons/v1';
 import { Stack } from '@actual-app/components/stack';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { Tooltip } from '@actual-app/components/tooltip';
+import { View } from '@actual-app/components/view';
 
-import { useTransactions } from 'loot-core/client/data-hooks/transactions';
 import {
   defaultMappings,
   type Mappings,
   mappingsFromString,
   mappingsToString,
 } from 'loot-core/server/util/custom-sync-mapping';
-import { q } from 'loot-core/src/shared/query';
+import { q } from 'loot-core/shared/query';
 import {
   type TransactionEntity,
   type AccountEntity,
-} from 'loot-core/src/types/models';
-
-import { useSyncedPref } from '../../hooks/useSyncedPref';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { CheckboxOption } from '../modals/ImportTransactionsModal/CheckboxOption';
+} from 'loot-core/types/models';
 
 import { FieldMapping } from './FieldMapping';
+
+import { unlinkAccount } from '@desktop-client/accounts/accountsSlice';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { CheckboxOption } from '@desktop-client/components/modals/ImportTransactionsModal/CheckboxOption';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { useTransactions } from '@desktop-client/hooks/useTransactions';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 export type TransactionDirection = 'payment' | 'deposit';
 
@@ -62,6 +73,15 @@ const mappableFields: MappableField[] = [
       'remittanceInformationStructured',
       'remittanceInformationStructuredArrayString',
       'additionalInformation',
+      'paymentData.payer.accountNumber',
+      'paymentData.payer.documentNumber.value',
+      'paymentData.payer.name',
+      'paymentData.receiver.accountNumber',
+      'paymentData.receiver.documentNumber.value',
+      'paymentData.receiver.name',
+      'merchant.name',
+      'merchant.businessName',
+      'merchant.cnpj',
     ],
   },
   {
@@ -73,6 +93,16 @@ const mappableFields: MappableField[] = [
       'remittanceInformationStructured',
       'remittanceInformationStructuredArrayString',
       'additionalInformation',
+      'category',
+      'paymentData.payer.accountNumber',
+      'paymentData.payer.documentNumber.value',
+      'paymentData.payer.name',
+      'paymentData.receiver.accountNumber',
+      'paymentData.receiver.documentNumber.value',
+      'paymentData.receiver.name',
+      'merchant.name',
+      'merchant.businessName',
+      'merchant.cnpj',
     ],
   },
 ];
@@ -103,6 +133,9 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
   const [savedImportPending = true, setSavedImportPending] = useSyncedPref(
     `sync-import-pending-${account.id}`,
   );
+  const [savedReimportDeleted = true, setSavedReimportDeleted] = useSyncedPref(
+    `sync-reimport-deleted-${account.id}`,
+  );
 
   const [transactionDirection, setTransactionDirection] =
     useState<TransactionDirection>('payment');
@@ -111,6 +144,9 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
   );
   const [importNotes, setImportNotes] = useState(
     String(savedImportNotes) === 'true',
+  );
+  const [reimportDeleted, setReimportDeleted] = useState(
+    String(savedReimportDeleted) === 'true',
   );
   const [mappings, setMappings] = useState<Mappings>(
     mappingsFromString(savedMappings),
@@ -149,7 +185,28 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
     setSavedMappings(mappingsStr);
     setSavedImportPending(String(importPending));
     setSavedImportNotes(String(importNotes));
+    setSavedReimportDeleted(String(reimportDeleted));
     close();
+  };
+
+  const dispatch = useDispatch();
+
+  const onUnlink = async (close: () => void) => {
+    dispatch(
+      pushModal({
+        modal: {
+          name: 'confirm-unlink-account',
+          options: {
+            accountName: account.name,
+            isViewBankSyncSettings: true,
+            onUnlink: () => {
+              dispatch(unlinkAccount({ id: account.id }));
+              close();
+            },
+          },
+        },
+      }),
+    );
   };
 
   const setMapping = (field: string, value: string) => {
@@ -159,6 +216,9 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
       return updated;
     });
   };
+
+  const potentiallyTruncatedAccountName =
+    account.name.length > 30 ? account.name.slice(0, 30) + '...' : account.name;
 
   const fields = exampleTransaction ? getFields(exampleTransaction) : [];
   const mapping = mappings.get(transactionDirection);
@@ -171,7 +231,9 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
       {({ state: { close } }) => (
         <>
           <ModalHeader
-            title={t('Account settings')}
+            title={t('{{accountName}} bank sync settings', {
+              accountName: potentiallyTruncatedAccountName,
+            })}
             rightContent={<ModalCloseButton onPress={close} />}
           />
 
@@ -179,22 +241,13 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
             <Trans>Field mapping</Trans>
           </Text>
 
-          {fields.length > 0 ? (
-            <FieldMapping
-              transactionDirection={transactionDirection}
-              setTransactionDirection={setTransactionDirection}
-              fields={fields as MappableFieldWithExample[]}
-              mapping={mapping!}
-              setMapping={setMapping}
-            />
-          ) : (
-            <Text style={{ margin: '1em 0 .5em 0' }}>
-              <Trans>
-                No transactions found with mappable fields, accounts must have
-                been synced at least once for this function to be available.
-              </Trans>
-            </Text>
-          )}
+          <FieldMapping
+            transactionDirection={transactionDirection}
+            setTransactionDirection={setTransactionDirection}
+            fields={fields as MappableFieldWithExample[]}
+            mapping={mapping!}
+            setMapping={setMapping}
+          />
 
           <Text style={{ fontSize: 15, margin: '1em 0 .5em 0' }}>
             <Trans>Options</Trans>
@@ -216,24 +269,63 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
             <Trans>Import transaction notes</Trans>
           </CheckboxOption>
 
-          <Stack
-            direction="row"
-            justify="flex-end"
-            align="center"
-            style={{ marginTop: 20 }}
+          <CheckboxOption
+            id="form_reimport_deleted"
+            checked={reimportDeleted}
+            onChange={() => setReimportDeleted(!reimportDeleted)}
           >
-            <Button style={{ marginRight: 10 }} onPress={close}>
-              <Trans>Cancel</Trans>
-            </Button>
+            <Tooltip
+              content={t(
+                'By default imported transactions that you delete will be re-imported with the next bank sync operation. To disable this behaviour - untick this box.',
+              )}
+            >
+              <View
+                style={{
+                  display: 'flex',
+                  flexWrap: 'nowrap',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <Trans>Reimport deleted transactions</Trans>
+                <SvgQuestion height={12} width={12} cursor="pointer" />
+              </View>
+            </Tooltip>
+          </CheckboxOption>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: 20,
+            }}
+          >
             <Button
-              variant="primary"
+              style={{ color: theme.errorText }}
               onPress={() => {
-                onSave(close);
+                onUnlink(close);
               }}
             >
-              <Trans>Save</Trans>
+              <Trans>Unlink account</Trans>
             </Button>
-          </Stack>
+
+            <Stack direction="row">
+              <Button style={{ marginRight: 10 }} onPress={close}>
+                <Trans>Cancel</Trans>
+              </Button>
+              <Button
+                variant="primary"
+                onPress={() => {
+                  onSave(close);
+                }}
+              >
+                <Trans>Save</Trans>
+              </Button>
+            </Stack>
+          </View>
         </>
       )}
     </Modal>

@@ -1,31 +1,35 @@
-import React, { useRef, useState } from 'react';
+import React, { memo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { SvgDotsHorizontalTriple } from '@actual-app/components/icons/v1';
+import {
+  SvgArrowButtonDown1,
+  SvgArrowButtonUp1,
+} from '@actual-app/components/icons/v2';
 import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
 import * as monthUtils from 'loot-core/shared/months';
 
-import { useUndo } from '../../../../hooks/useUndo';
-import { SvgDotsHorizontalTriple } from '../../../../icons/v1';
-import { SvgArrowButtonDown1, SvgArrowButtonUp1 } from '../../../../icons/v2';
-import { theme } from '../../../../style';
-import { NotesButton } from '../../../NotesButton';
-import { NamespaceContext } from '../../../spreadsheet/NamespaceContext';
-import { useEnvelopeBudget } from '../EnvelopeBudgetContext';
-
 import { BudgetMonthMenu } from './BudgetMonthMenu';
 import { ToBudget } from './ToBudget';
 import { TotalsList } from './TotalsList';
 
+import { useEnvelopeBudget } from '@desktop-client/components/budget/envelope/EnvelopeBudgetContext';
+import { NotesButton } from '@desktop-client/components/NotesButton';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { SheetNameProvider } from '@desktop-client/hooks/useSheetName';
+import { useUndo } from '@desktop-client/hooks/useUndo';
+
 type BudgetSummaryProps = {
   month: string;
-  isGoalTemplatesEnabled?: boolean;
 };
-export function BudgetSummary({ month }: BudgetSummaryProps) {
+export const BudgetSummary = memo(({ month }: BudgetSummaryProps) => {
+  const locale = useLocale();
   const {
     currentMonth,
     summaryCollapsed: collapsed,
@@ -45,13 +49,17 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
     setMenuOpen(false);
   }
 
-  const prevMonthName = monthUtils.format(monthUtils.prevMonth(month), 'MMM');
+  const prevMonthName = monthUtils.format(
+    monthUtils.prevMonth(month),
+    'MMM',
+    locale,
+  );
 
   const ExpandOrCollapseIcon = collapsed
     ? SvgArrowButtonDown1
     : SvgArrowButtonUp1;
 
-  const displayMonth = monthUtils.format(month, 'MMMM ‘yy');
+  const displayMonth = monthUtils.format(month, 'MMMM ‘yy', locale);
   const { t } = useTranslation();
 
   return (
@@ -80,7 +88,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
         },
       }}
     >
-      <NamespaceContext.Provider value={monthUtils.sheetForMonth(month)}>
+      <SheetNameProvider name={monthUtils.sheetForMonth(month)}>
         <View
           style={{
             padding: '0 13px',
@@ -125,7 +133,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
               currentMonth === month && { fontWeight: 'bold' },
             ])}
           >
-            {monthUtils.format(month, 'MMMM')}
+            {monthUtils.format(month, 'MMMM', locale)}
           </div>
 
           <View
@@ -279,7 +287,9 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
             </View>
           </>
         )}
-      </NamespaceContext.Provider>
+      </SheetNameProvider>
     </View>
   );
-}
+});
+
+BudgetSummary.displayName = 'EnvelopeBudgetSummary';

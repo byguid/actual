@@ -16,26 +16,26 @@ import {
   getStatus,
   recurConfigToRSchedule,
 } from '../../shared/schedules';
-import { Rule } from '../accounts/rules';
+import { ScheduleEntity } from '../../types/models';
 import { addTransactions } from '../accounts/sync';
+import { createApp } from '../app';
+import { aqlQuery } from '../aql';
+import * as db from '../db';
+import { toDateRepr } from '../models';
+import { mutator, runMutator } from '../mutators';
+import * as prefs from '../prefs';
+import { Rule } from '../rules';
+import { addSyncListener, batchMessages } from '../sync';
 import {
   getRules,
   insertRule,
   ruleModel,
   updateRule,
-} from '../accounts/transaction-rules';
-import { createApp } from '../app';
-import { runQuery as aqlQuery } from '../aql';
-import * as db from '../db';
-import { toDateRepr } from '../models';
-import { mutator, runMutator } from '../mutators';
-import * as prefs from '../prefs';
-import { addSyncListener, batchMessages } from '../sync';
+} from '../transactions/transaction-rules';
 import { undoable } from '../undo';
 import { Schedule as RSchedule } from '../util/rschedule';
 
 import { findSchedules } from './find-schedules';
-import { SchedulesHandlers } from './types/handlers';
 
 // Utilities
 
@@ -140,7 +140,9 @@ export async function setNextDate({
     if (newNextDate !== nextDate) {
       // Our `update` functon requires the id of the item and we don't
       // have it, so we need to query it
-      const nd = await db.first(
+      const nd = await db.first<
+        Pick<db.DbScheduleNextDate, 'id' | 'base_next_date_ts'>
+      >(
         'SELECT id, base_next_date_ts FROM schedules_next_date WHERE schedule_id = ?',
         [id],
       );
@@ -166,7 +168,7 @@ export async function setNextDate({
 // Methods
 
 async function checkIfScheduleExists(name, scheduleId) {
-  const idForName = await db.first(
+  const idForName = await db.first<Pick<db.DbSchedule, 'id'>>(
     'SELECT id from schedules WHERE tombstone = 0 AND name = ?',
     [name],
   );
@@ -183,7 +185,7 @@ async function checkIfScheduleExists(name, scheduleId) {
 export async function createSchedule({
   schedule = null,
   conditions = [],
-} = {}) {
+} = {}): Promise<ScheduleEntity['id']> {
   const scheduleId = schedule?.id || uuidv4();
 
   const { date: dateCond } = extractScheduleConds(conditions);
@@ -410,7 +412,13 @@ function onApplySync(oldValues, newValues) {
 // This is the service that move schedules forward automatically and
 // posts transactions
 
-async function postTransactionForSchedule({ id }: { id: string }) {
+async function postTransactionForSchedule({
+  id,
+  today,
+}: {
+  id: string;
+  today?: boolean;
+}) {
   const { data } = await aqlQuery(q('schedules').filter({ id }).select('*'));
   const schedule = data[0];
   if (schedule == null || schedule._account == null) {
@@ -421,7 +429,7 @@ async function postTransactionForSchedule({ id }: { id: string }) {
     payee: schedule._payee,
     account: schedule._account,
     amount: getScheduledAmount(schedule._amount),
-    date: schedule.next_date,
+    date: today ? currentDay() : schedule.next_date,
     schedule: schedule.id,
     cleared: false,
   };
@@ -513,6 +521,17 @@ async function advanceSchedulesService(syncSuccess) {
     });
   }
 }
+
+export type SchedulesHandlers = {
+  'schedule/create': typeof createSchedule;
+  'schedule/update': typeof updateSchedule;
+  'schedule/delete': typeof deleteSchedule;
+  'schedule/skip-next-date': typeof skipNextDate;
+  'schedule/post-transaction': typeof postTransactionForSchedule;
+  'schedule/force-run-service': typeof advanceSchedulesService;
+  'schedule/discover': typeof discoverSchedules;
+  'schedule/get-upcoming-dates': typeof getUpcomingDates;
+};
 
 // Expose functions to the client
 export const app = createApp<SchedulesHandlers>();

@@ -85,11 +85,12 @@ export function loginWithPassword(password) {
 
   let expiration = TOKEN_EXPIRATION_NEVER;
   if (
-    config.token_expiration !== 'never' &&
-    config.token_expiration !== 'openid-provider' &&
-    typeof config.token_expiration === 'number'
+    config.get('token_expiration') !== 'never' &&
+    config.get('token_expiration') !== 'openid-provider' &&
+    typeof config.get('token_expiration') === 'number'
   ) {
-    expiration = Math.floor(Date.now() / 1000) + config.token_expiration * 60;
+    expiration =
+      Math.floor(Date.now() / 1000) + config.get('token_expiration') * 60;
   }
 
   if (!sessionRow) {
@@ -121,4 +122,28 @@ export function changePassword(newPassword) {
     hashed,
   ]);
   return {};
+}
+
+export function checkPassword(password) {
+  if (!isValidPassword(password)) {
+    return false;
+  }
+
+  const accountDb = getAccountDb();
+  const { extra_data: passwordHash } =
+    accountDb.first('SELECT extra_data FROM auth WHERE method = ?', [
+      'password',
+    ]) || {};
+
+  if (!passwordHash) {
+    return false;
+  }
+
+  const confirmed = bcrypt.compareSync(password, passwordHash);
+
+  if (!confirmed) {
+    return false;
+  }
+
+  return true;
 }

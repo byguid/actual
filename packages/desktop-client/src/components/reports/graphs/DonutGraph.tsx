@@ -1,27 +1,29 @@
 // @ts-strict-ignore
 import React, { useState, type CSSProperties } from 'react';
 
+import { theme } from '@actual-app/components/theme';
 import { PieChart, Pie, Cell, Sector, ResponsiveContainer } from 'recharts';
 
-import { amountToCurrency } from 'loot-core/shared/util';
 import {
   type balanceTypeOpType,
   type DataEntity,
-} from 'loot-core/types/models/reports';
-import { type RuleConditionEntity } from 'loot-core/types/models/rule';
-
-import { useAccounts } from '../../../hooks/useAccounts';
-import { useCategories } from '../../../hooks/useCategories';
-import { useNavigate } from '../../../hooks/useNavigate';
-import { theme } from '../../../style';
-import { PrivacyFilter } from '../../PrivacyFilter';
-import { Container } from '../Container';
+  type RuleConditionEntity,
+} from 'loot-core/types/models';
 
 import { adjustTextSize } from './adjustTextSize';
 import { renderCustomLabel } from './renderCustomLabel';
 import { showActivity } from './showActivity';
 
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { Container } from '@desktop-client/components/reports/Container';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+
 const RADIAN = Math.PI / 180;
+
+const canDeviceHover = () => window.matchMedia('(hover: hover)').matches;
 
 const ActiveShapeMobile = props => {
   const {
@@ -35,6 +37,7 @@ const ActiveShapeMobile = props => {
     payload,
     percent,
     value,
+    format,
   } = props;
   const yAxis = payload.name ?? payload.date;
 
@@ -61,7 +64,7 @@ const ActiveShapeMobile = props => {
           textAnchor="end"
           fill={fill}
         >
-          {`${amountToCurrency(value)}`}
+          {`${format(value, 'financial')}`}
         </text>
         <text
           x={cx + outerRadius * Math.cos(-RADIAN * 330) + 10}
@@ -95,6 +98,10 @@ const ActiveShapeMobile = props => {
   );
 };
 
+const ActiveShapeMobileWithFormat = props => (
+  <ActiveShapeMobile {...props} format={props.format} />
+);
+
 const ActiveShape = props => {
   const {
     cx,
@@ -108,6 +115,7 @@ const ActiveShape = props => {
     payload,
     percent,
     value,
+    format,
   } = props;
   const yAxis = payload.name ?? payload.date;
   const sin = Math.sin(-RADIAN * midAngle);
@@ -159,7 +167,7 @@ const ActiveShape = props => {
           dy={18}
           textAnchor={textAnchor}
           fill={fill}
-        >{`${amountToCurrency(value)}`}</text>
+        >{`${format(value, 'financial')}`}</text>
         <text
           x={ex + (cos <= 0 ? 1 : -1) * 16}
           y={ey}
@@ -173,6 +181,10 @@ const ActiveShape = props => {
     </g>
   );
 };
+
+const ActiveShapeWithFormat = props => (
+  <ActiveShape {...props} format={props.format} />
+);
 
 const customLabel = props => {
   const radius =
@@ -223,6 +235,8 @@ export function DonutGraph({
   showOffBudget,
   showTooltip = true,
 }: DonutGraphProps) {
+  const format = useFormat();
+
   const yAxis = groupBy === 'Interval' ? 'date' : 'name';
   const splitData = groupBy === 'Interval' ? 'intervalData' : 'data';
 
@@ -262,8 +276,18 @@ export function DonutGraph({
                       width < 220 || height < 130
                         ? undefined
                         : compact
-                          ? ActiveShapeMobile
-                          : ActiveShape
+                          ? props => (
+                              <ActiveShapeMobileWithFormat
+                                {...props}
+                                format={format}
+                              />
+                            )
+                          : props => (
+                              <ActiveShapeWithFormat
+                                {...props}
+                                format={format}
+                              />
+                            )
                     }
                     dataKey={val => getVal(val)}
                     nameKey={yAxis}
@@ -279,29 +303,39 @@ export function DonutGraph({
                     endAngle={-270}
                     onMouseLeave={() => setPointer('')}
                     onMouseEnter={(_, index) => {
-                      setActiveIndex(index);
-                      if (!['Group', 'Interval'].includes(groupBy)) {
-                        setPointer('pointer');
+                      if (canDeviceHover()) {
+                        setActiveIndex(index);
+                        if (!['Group', 'Interval'].includes(groupBy)) {
+                          setPointer('pointer');
+                        }
                       }
                     }}
-                    onClick={item =>
-                      ((compact && showTooltip) || !compact) &&
-                      !['Group', 'Interval'].includes(groupBy) &&
-                      showActivity({
-                        navigate,
-                        categories,
-                        accounts,
-                        balanceTypeOp,
-                        filters,
-                        showHiddenCategories,
-                        showOffBudget,
-                        type: 'totals',
-                        startDate: data.startDate,
-                        endDate: data.endDate,
-                        field: groupBy.toLowerCase(),
-                        id: item.id,
-                      })
-                    }
+                    onClick={(item, index) => {
+                      if (!canDeviceHover()) {
+                        setActiveIndex(index);
+                      }
+
+                      if (
+                        !['Group', 'Interval'].includes(groupBy) &&
+                        (canDeviceHover() || activeIndex === index) &&
+                        ((compact && showTooltip) || !compact)
+                      ) {
+                        showActivity({
+                          navigate,
+                          categories,
+                          accounts,
+                          balanceTypeOp,
+                          filters,
+                          showHiddenCategories,
+                          showOffBudget,
+                          type: 'totals',
+                          startDate: data.startDate,
+                          endDate: data.endDate,
+                          field: groupBy.toLowerCase(),
+                          id: item.id,
+                        });
+                      }
+                    }}
                   >
                     {data.legend.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />

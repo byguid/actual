@@ -1,48 +1,55 @@
 import React, { useState, useEffect, useMemo, type CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
 import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
+import { SvgEquals } from '@actual-app/components/icons/v1';
+import {
+  SvgCloseParenthesis,
+  SvgOpenParenthesis,
+  SvgSum,
+} from '@actual-app/components/icons/v2';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { parseISO } from 'date-fns';
 
-import { addNotification } from 'loot-core/client/actions';
-import { useWidget } from 'loot-core/client/data-hooks/widget';
 import { send } from 'loot-core/platform/client/fetch';
 import * as monthUtils from 'loot-core/shared/months';
-import { amountToCurrency } from 'loot-core/shared/util';
 import {
   type SummaryContent,
   type SummaryWidget,
   type TimeFrame,
 } from 'loot-core/types/models';
 
-import { useFilters } from '../../../hooks/useFilters';
-import { useNavigate } from '../../../hooks/useNavigate';
-import { useSyncedPref } from '../../../hooks/useSyncedPref';
-import { SvgEquals } from '../../../icons/v1';
-import { SvgCloseParenthesis } from '../../../icons/v2/CloseParenthesis';
-import { SvgOpenParenthesis } from '../../../icons/v2/OpenParenthesis';
-import { SvgSum } from '../../../icons/v2/Sum';
-import { useDispatch } from '../../../redux';
-import { theme } from '../../../style';
-import { EditablePageHeaderTitle } from '../../EditablePageHeaderTitle';
-import { AppliedFilters } from '../../filters/AppliedFilters';
-import { FilterButton } from '../../filters/FiltersMenu';
-import { Checkbox } from '../../forms';
-import { MobileBackButton } from '../../mobile/MobileBackButton';
-import { FieldSelect } from '../../modals/EditRuleModal';
-import { MobilePageHeader, Page, PageHeader } from '../../Page';
-import { PrivacyFilter } from '../../PrivacyFilter';
-import { useResponsive } from '../../responsive/ResponsiveProvider';
-import { chartTheme } from '../chart-theme';
-import { Header } from '../Header';
-import { LoadingIndicator } from '../LoadingIndicator';
-import { calculateTimeRange } from '../reportRanges';
-import { summarySpreadsheet } from '../spreadsheets/summary-spreadsheet';
-import { useReport } from '../useReport';
-import { fromDateRepr } from '../util';
+import { EditablePageHeaderTitle } from '@desktop-client/components/EditablePageHeaderTitle';
+import { AppliedFilters } from '@desktop-client/components/filters/AppliedFilters';
+import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
+import { Checkbox } from '@desktop-client/components/forms';
+import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
+import {
+  MobilePageHeader,
+  Page,
+  PageHeader,
+} from '@desktop-client/components/Page';
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { chartTheme } from '@desktop-client/components/reports/chart-theme';
+import { Header } from '@desktop-client/components/reports/Header';
+import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
+import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
+import { summarySpreadsheet } from '@desktop-client/components/reports/spreadsheets/summary-spreadsheet';
+import { useReport } from '@desktop-client/components/reports/useReport';
+import { fromDateRepr } from '@desktop-client/components/reports/util';
+import { FieldSelect } from '@desktop-client/components/rules/RuleEditor';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { useRuleConditionFilters } from '@desktop-client/hooks/useRuleConditionFilters';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { useWidget } from '@desktop-client/hooks/useWidget';
+import { addNotification } from '@desktop-client/notifications/notificationsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 export function Summary() {
   const params = useParams();
@@ -62,10 +69,13 @@ type SummaryInnerProps = {
   widget?: SummaryWidget;
 };
 
-type FilterObject = ReturnType<typeof useFilters>;
+type FilterObject = ReturnType<typeof useRuleConditionFilters>;
 
 function SummaryInner({ widget }: SummaryInnerProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
+  const format = useFormat();
+
   const [initialStart, initialEnd, initialMode] = calculateTimeRange(
     widget?.meta?.timeFrame,
     {
@@ -78,7 +88,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
   const [end, setEnd] = useState(initialEnd);
   const [mode, setMode] = useState(initialMode);
 
-  const dividendFilters: FilterObject = useFilters(
+  const dividendFilters: FilterObject = useRuleConditionFilters(
     widget?.meta?.conditions ?? [],
     widget?.meta?.conditionsOp ?? 'and',
   );
@@ -106,7 +116,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
         },
   );
 
-  const divisorFilters = useFilters(
+  const divisorFilters = useRuleConditionFilters(
     content.type === 'percentage' ? (content?.divisorConditions ?? []) : [],
     content.type === 'percentage'
       ? (content?.divisorConditionsOp ?? 'and')
@@ -121,6 +131,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
         dividendFilters.conditions,
         dividendFilters.conditionsOp,
         content,
+        locale,
       ),
     [
       start,
@@ -128,6 +139,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
       dividendFilters.conditions,
       dividendFilters.conditionsOp,
       content,
+      locale,
     ],
   );
 
@@ -172,14 +184,14 @@ function SummaryInner({ widget }: SummaryInnerProps) {
         .rangeInclusive(earliestMonth, monthUtils.currentMonth())
         .map(month => ({
           name: month,
-          pretty: monthUtils.format(month, 'MMMM, yyyy'),
+          pretty: monthUtils.format(month, 'MMMM, yyyy', locale),
         }))
         .reverse();
 
       setAllMonths(allMonths);
     }
     run();
-  }, []);
+  }, [locale]);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -190,8 +202,10 @@ function SummaryInner({ widget }: SummaryInnerProps) {
     if (!widget) {
       dispatch(
         addNotification({
-          type: 'error',
-          message: t('Cannot save: No widget available.'),
+          notification: {
+            type: 'error',
+            message: t('Cannot save: No widget available.'),
+          },
         }),
       );
       return;
@@ -218,8 +232,10 @@ function SummaryInner({ widget }: SummaryInnerProps) {
     if (!widget) {
       dispatch(
         addNotification({
-          type: 'error',
-          message: t('Cannot save: No widget available.'),
+          notification: {
+            type: 'error',
+            message: t('Cannot save: No widget available.'),
+          },
         }),
       );
       return;
@@ -240,11 +256,22 @@ function SummaryInner({ widget }: SummaryInnerProps) {
     });
     dispatch(
       addNotification({
-        type: 'message',
-        message: t('Dashboard widget successfully saved.'),
+        notification: {
+          type: 'message',
+          message: t('Dashboard widget successfully saved.'),
+        },
       }),
     );
   }
+
+  const getDivisorFormatted = (contentType: string, value: number) => {
+    if (contentType === 'avgPerMonth') {
+      return format(value, 'number');
+    } else if (contentType === 'avgPerTransact') {
+      return format(value, 'number');
+    }
+    return format(Math.round(value), 'financial');
+  };
 
   return (
     <Page
@@ -310,7 +337,9 @@ function SummaryInner({ widget }: SummaryInnerProps) {
             padding: 16,
           }}
         >
-          <span style={{ marginRight: 4 }}>{t('Show as')}</span>
+          <span style={{ marginRight: 4 }}>
+            <Trans>Show as</Trans>
+          </span>
           <FieldSelect
             style={{ marginRight: 16 }}
             fields={[
@@ -346,7 +375,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
                 }));
               }}
             />{' '}
-            {t('All time divisor')}
+            <Trans>All time divisor</Trans>
           </View>
         )}
       </View>
@@ -390,7 +419,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
                   }}
                 >
                   <PrivacyFilter>
-                    {amountToCurrency(data?.dividend ?? 0)}
+                    {format(data?.dividend ?? 0, 'financial')}
                   </PrivacyFilter>
                 </Text>
                 <div
@@ -410,7 +439,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
                   }}
                 >
                   <PrivacyFilter>
-                    {amountToCurrency(data?.divisor ?? 0)}
+                    {getDivisorFormatted(content.type, data?.divisor ?? 0)}
                   </PrivacyFilter>
                 </Text>
               </View>
@@ -435,7 +464,9 @@ function SummaryInner({ widget }: SummaryInnerProps) {
             }}
           >
             <PrivacyFilter>
-              {amountToCurrency(Math.abs(data?.total ?? 0))}
+              {content.type === 'percentage'
+                ? format(Math.abs(data?.total ?? 0), 'number')
+                : format(Math.abs(Math.round(data?.total ?? 0)), 'financial')}
               {content.type === 'percentage' ? '%' : ''}
             </PrivacyFilter>
           </View>

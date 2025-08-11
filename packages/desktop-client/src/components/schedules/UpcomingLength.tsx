@@ -3,15 +3,19 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { Paragraph } from '@actual-app/components/paragraph';
+import { Select } from '@actual-app/components/select';
 import { View } from '@actual-app/components/view';
 
 import { type SyncedPrefs } from 'loot-core/types/prefs';
 
-import { useSyncedPref } from '../../hooks/useSyncedPref';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { Select } from '../common/Select';
-
 import { CustomUpcomingLength } from './CustomUpcomingLength';
+
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
 
 function useUpcomingLengthOptions() {
   const { t } = useTranslation();

@@ -3,18 +3,19 @@ import React, { useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { format as formatDate, parseISO } from 'date-fns';
 
 import { getMonthYearFormat } from 'loot-core/shared/months';
 import { getRecurringDescription } from 'loot-core/shared/schedules';
 import { integerToCurrency } from 'loot-core/shared/util';
 
-import { useAccounts } from '../../hooks/useAccounts';
-import { useCategories } from '../../hooks/useCategories';
-import { useDateFormat } from '../../hooks/useDateFormat';
-import { usePayees } from '../../hooks/usePayees';
-import { theme } from '../../style';
-import { Link } from '../common/Link';
+import { Link } from '@desktop-client/components/common/Link';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { usePayees } from '@desktop-client/hooks/usePayees';
 
 type ValueProps<T> = {
   value: T;
@@ -45,6 +46,7 @@ export function Value<T>({
     color: theme.pageTextPositive,
     ...style,
   };
+  const locale = useLocale();
 
   const data =
     dataProp ||
@@ -65,7 +67,7 @@ export function Value<T>({
 
   function formatValue(value) {
     if (value == null || value === '') {
-      return '(nothing)';
+      return t('(nothing)');
     } else if (typeof value === 'boolean') {
       return value ? 'true' : 'false';
     } else {
@@ -75,7 +77,7 @@ export function Value<T>({
         case 'date':
           if (value) {
             if (value.frequency) {
-              return getRecurringDescription(value, dateFormat);
+              return getRecurringDescription(value, dateFormat, locale);
             }
             return formatDate(parseISO(value), dateFormat);
           }
@@ -102,7 +104,7 @@ export function Value<T>({
             if (item) {
               return describe(item);
             } else {
-              return '(deleted)';
+              return t('(deleted)');
             }
           }
 
@@ -159,7 +161,7 @@ export function Value<T>({
           <Text style={valueStyle}>
             &nbsp;&nbsp;
             <Link variant="text" onClick={onExpand} style={valueStyle}>
-              {numHidden} more items...
+              {t('{{num}} more items...', { num: numHidden })}
             </Link>
             {!inline && <br />}
           </Text>

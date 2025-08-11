@@ -1,10 +1,18 @@
 // @ts-strict-ignore
 import React, { type CSSProperties, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { AlignedText } from '@actual-app/components/aligned-text';
+import { Button } from '@actual-app/components/button';
+import {
+  SvgArrowButtonDown1,
+  SvgArrowButtonUp1,
+} from '@actual-app/components/icons/v2';
 import { InitialFocus } from '@actual-app/components/initial-focus';
+import { Input } from '@actual-app/components/input';
 import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
+import { SpaceBetween } from '@actual-app/components/space-between';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
@@ -12,29 +20,32 @@ import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
 import { css, cx } from '@emotion/css';
 
-import { openAccountCloseModal } from 'loot-core/client/actions';
-import * as Platform from 'loot-core/client/platform';
+import * as Platform from 'loot-core/shared/platform';
+import { type AccountEntity } from 'loot-core/types/models';
+
+import { BalanceHistoryGraph } from './BalanceHistoryGraph';
+
+import { Link } from '@desktop-client/components/common/Link';
+import { Notes } from '@desktop-client/components/Notes';
+import {
+  DropHighlight,
+  useDraggable,
+  useDroppable,
+  type OnDragChangeCallback,
+  type OnDropCallback,
+} from '@desktop-client/components/sort';
+import { CellValue } from '@desktop-client/components/spreadsheet/CellValue';
+import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
+import { useDragRef } from '@desktop-client/hooks/useDragRef';
+import { useNotes } from '@desktop-client/hooks/useNotes';
+import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { openAccountCloseModal } from '@desktop-client/modals/modalsSlice';
 import {
   reopenAccount,
   updateAccount,
-} from 'loot-core/client/queries/queriesSlice';
-import { type AccountEntity } from 'loot-core/types/models';
-
-import { useContextMenu } from '../../hooks/useContextMenu';
-import { useNotes } from '../../hooks/useNotes';
-import { useDispatch } from '../../redux';
-import { Input } from '../common/Input';
-import { Link } from '../common/Link';
-import { Notes } from '../Notes';
-import {
-  useDraggable,
-  useDroppable,
-  DropHighlight,
-  type OnDragChangeCallback,
-  type OnDropCallback,
-} from '../sort';
-import { type SheetFields, type Binding } from '../spreadsheet';
-import { CellValue } from '../spreadsheet/CellValue';
+} from '@desktop-client/queries/queriesSlice';
+import { useDispatch } from '@desktop-client/redux';
+import { type SheetFields, type Binding } from '@desktop-client/spreadsheet';
 
 export const accountNameStyle: CSSProperties = {
   marginTop: -2,
@@ -62,6 +73,7 @@ type AccountProps<FieldName extends SheetFields<'account'>> = {
   outerStyle?: CSSProperties;
   onDragChange?: OnDragChangeCallback<{ id: string }>;
   onDrop?: OnDropCallback;
+  titleAccount?: boolean;
 };
 
 export function Account<FieldName extends SheetFields<'account'>>({
@@ -77,7 +89,9 @@ export function Account<FieldName extends SheetFields<'account'>>({
   outerStyle,
   onDragChange,
   onDrop,
+  titleAccount,
 }: AccountProps<FieldName>) {
+  const { t } = useTranslation();
   const type = account
     ? account.closed
       ? 'account-closed'
@@ -96,6 +110,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
     item: { id: account && account.id },
     canDrag: account != null,
   });
+  const handleDragRef = useDragRef(dragRef);
 
   const { dropRef, dropPos } = useDroppable({
     types: account ? [type] : [],
@@ -103,12 +118,19 @@ export function Account<FieldName extends SheetFields<'account'>>({
     onDrop,
   });
 
+  const [showBalanceHistory, setShowBalanceHistory] = useSyncedPref(
+    `side-nav.show-balance-history-${account?.id}`,
+  );
+
   const dispatch = useDispatch();
 
   const [isEditing, setIsEditing] = useState(false);
 
   const accountNote = useNotes(`account-${account?.id}`);
-  const needsTooltip = !!account?.id;
+  const isTouchDevice =
+    window.matchMedia('(hover: none)').matches ||
+    window.matchMedia('(pointer: coarse)').matches;
+  const needsTooltip = !!account?.id && !isTouchDevice;
 
   const accountRow = (
     <View
@@ -118,7 +140,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
     >
       <View innerRef={triggerRef}>
         <DropHighlight pos={dropPos} />
-        <View innerRef={dragRef}>
+        <View innerRef={handleDragRef}>
           <Link
             variant="internal"
             to={to}
@@ -178,7 +200,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
 
             <AlignedText
               style={
-                (name === 'Off budget' || name === 'On budget') && {
+                titleAccount && {
                   borderBottom: `1.5px solid rgba(255,255,255,0.4)`,
                   paddingBottom: '3px',
                 }
@@ -192,9 +214,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
                         width: '100%',
                       }}
                       onBlur={() => setIsEditing(false)}
-                      onEnter={e => {
-                        const inputEl = e.target as HTMLInputElement;
-                        const newAccountName = inputEl.value;
+                      onEnter={newAccountName => {
                         if (newAccountName.trim() !== '') {
                           dispatch(
                             updateAccount({
@@ -232,7 +252,9 @@ export function Account<FieldName extends SheetFields<'account'>>({
                 onMenuSelect={type => {
                   switch (type) {
                     case 'close': {
-                      dispatch(openAccountCloseModal(account.id));
+                      dispatch(
+                        openAccountCloseModal({ accountId: account.id }),
+                      );
                       break;
                     }
                     case 'reopen': {
@@ -272,19 +294,55 @@ export function Account<FieldName extends SheetFields<'account'>>({
             padding: 10,
           }}
         >
-          <Text
+          <SpaceBetween
+            gap={5}
             style={{
-              fontWeight: 'bold',
-              borderBottom: accountNote ? `1px solid ${theme.tableBorder}` : 0,
-              marginBottom: accountNote ? '0.5rem' : 0,
+              justifyContent: 'space-between',
+              '& .hover-visible': {
+                opacity: 0,
+                transition: 'opacity .25s',
+              },
+              '&:hover .hover-visible': {
+                opacity: 1,
+              },
             }}
           >
-            {name}
-          </Text>
+            <Text
+              style={{
+                fontWeight: 'bold',
+              }}
+            >
+              {name}
+            </Text>
+            <Button
+              aria-label={t('Toggle balance history')}
+              variant="bare"
+              onClick={() =>
+                setShowBalanceHistory(
+                  showBalanceHistory === 'true' ? 'false' : 'true',
+                )
+              }
+              className="hover-visible"
+            >
+              <SpaceBetween gap={3}>
+                {showBalanceHistory === 'true' ? (
+                  <SvgArrowButtonUp1 width={10} height={10} />
+                ) : (
+                  <SvgArrowButtonDown1 width={10} height={10} />
+                )}
+              </SpaceBetween>
+            </Button>
+          </SpaceBetween>
+          {showBalanceHistory === 'true' && account && (
+            <BalanceHistoryGraph accountId={account.id} />
+          )}
           {accountNote && (
             <Notes
               getStyle={() => ({
+                borderTop: `1px solid ${theme.tableBorder}`,
                 padding: 0,
+                paddingTop: '0.5rem',
+                marginTop: '0.5rem',
               })}
               notes={accountNote}
             />
@@ -295,6 +353,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
       placement="right top"
       triggerProps={{
         delay: 1000,
+        closeDelay: 250,
         isDisabled: menuOpen,
       }}
     >

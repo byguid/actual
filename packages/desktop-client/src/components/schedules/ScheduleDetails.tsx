@@ -6,12 +6,10 @@ import { Button } from '@actual-app/components/button';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Stack } from '@actual-app/components/stack';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { t } from 'i18next';
 
-import { pushModal } from 'loot-core/client/actions/modals';
-import { getPayeesById } from 'loot-core/client/queries/queriesSlice';
-import { runQuery, liveQuery } from 'loot-core/client/query-helpers';
 import { send, sendCatch } from 'loot-core/platform/client/fetch';
 import * as monthUtils from 'loot-core/shared/months';
 import { q } from 'loot-core/shared/query';
@@ -23,22 +21,43 @@ import {
   type RecurConfig,
 } from 'loot-core/types/models';
 
-import { useDateFormat } from '../../hooks/useDateFormat';
-import { usePayees } from '../../hooks/usePayees';
-import { useSelected, SelectedProvider } from '../../hooks/useSelected';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { AccountAutocomplete } from '../autocomplete/AccountAutocomplete';
-import { PayeeAutocomplete } from '../autocomplete/PayeeAutocomplete';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { FormField, FormLabel, Checkbox } from '../forms';
-import { OpSelect } from '../modals/EditRuleModal';
-import { DateSelect } from '../select/DateSelect';
-import { RecurringSchedulePicker } from '../select/RecurringSchedulePicker';
-import { SelectedItemsButton } from '../table';
-import { SimpleTransactionsTable } from '../transactions/SimpleTransactionsTable';
-import { AmountInput, BetweenAmountInput } from '../util/AmountInput';
-import { GenericInput } from '../util/GenericInput';
+import { AccountAutocomplete } from '@desktop-client/components/autocomplete/AccountAutocomplete';
+import { PayeeAutocomplete } from '@desktop-client/components/autocomplete/PayeeAutocomplete';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import {
+  FormField,
+  FormLabel,
+  Checkbox,
+} from '@desktop-client/components/forms';
+import { OpSelect } from '@desktop-client/components/rules/RuleEditor';
+import { DateSelect } from '@desktop-client/components/select/DateSelect';
+import { RecurringSchedulePicker } from '@desktop-client/components/select/RecurringSchedulePicker';
+import { SelectedItemsButton } from '@desktop-client/components/table';
+import { SimpleTransactionsTable } from '@desktop-client/components/transactions/SimpleTransactionsTable';
+import {
+  AmountInput,
+  BetweenAmountInput,
+} from '@desktop-client/components/util/AmountInput';
+import { GenericInput } from '@desktop-client/components/util/GenericInput';
+import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { usePayees } from '@desktop-client/hooks/usePayees';
+import {
+  useSelected,
+  SelectedProvider,
+} from '@desktop-client/hooks/useSelected';
+import {
+  type Modal as ModalType,
+  pushModal,
+} from '@desktop-client/modals/modalsSlice';
+import { aqlQuery } from '@desktop-client/queries/aqlQuery';
+import { liveQuery } from '@desktop-client/queries/liveQuery';
+import { getPayeesById } from '@desktop-client/queries/queriesSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 type Fields = {
   payee: null | string;
@@ -68,7 +87,7 @@ function updateScheduleConditions(
       return { ...cond, value };
     }
 
-    if (value != null) {
+    if (value != null || field === 'payee') {
       return { op, field, value };
     }
 
@@ -100,12 +119,13 @@ function updateScheduleConditions(
   };
 }
 
-type ScheduleDetailsProps = {
-  id: string;
-  transaction: TransactionEntity;
-};
+type ScheduleDetailsProps = Extract<
+  ModalType,
+  { name: 'schedule-edit' }
+>['options'];
 
 export function ScheduleDetails({ id, transaction }: ScheduleDetailsProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
 
   const adding = id == null;
@@ -311,7 +331,7 @@ export function ScheduleDetails({ id, transaction }: ScheduleDetailsProps) {
   );
 
   async function loadSchedule() {
-    const { data } = await runQuery(q('schedules').filter({ id }).select('*'));
+    const { data } = await aqlQuery(q('schedules').filter({ id }).select('*'));
     return data[0];
   }
 
@@ -475,7 +495,7 @@ export function ScheduleDetails({ id, transaction }: ScheduleDetailsProps) {
   async function onSave(close: () => void, schedule: Partial<ScheduleEntity>) {
     dispatch({ type: 'form-error', error: null });
     if (state.fields.name) {
-      const { data: sameName } = await runQuery(
+      const { data: sameName } = await aqlQuery(
         q('schedules').filter({ name: state.fields.name }).select('id'),
       );
       if (sameName.length > 0 && sameName[0].id !== schedule.id) {
@@ -529,12 +549,21 @@ export function ScheduleDetails({ id, transaction }: ScheduleDetailsProps) {
   async function onEditRule(id: string) {
     const rule = await send('rule-get', { id });
 
+    if (!rule) {
+      return;
+    }
+
     globalDispatch(
-      pushModal('edit-rule', {
-        rule,
-        onSave: async () => {
-          const schedule = await loadSchedule();
-          dispatch({ type: 'set-schedule', schedule });
+      pushModal({
+        modal: {
+          name: 'edit-rule',
+          options: {
+            rule,
+            onSave: async () => {
+              const schedule = await loadSchedule();
+              dispatch({ type: 'set-schedule', schedule });
+            },
+          },
         },
       }),
     );
@@ -645,10 +674,11 @@ export function ScheduleDetails({ id, transaction }: ScheduleDetailsProps) {
                   htmlFor="amount-field"
                   style={{ margin: 0, flex: 1 }}
                 />
-                {/* @ts-expect-error should be auto-patched once GenericInput is converted to TS */}
                 <OpSelect
                   ops={['isapprox', 'is', 'isbetween']}
-                  value={state.fields.amountOp}
+                  value={
+                    state.fields.amountOp as 'isapprox' | 'is' | 'isbetween'
+                  }
                   formatOp={op => {
                     switch (op) {
                       case 'is':
@@ -741,7 +771,7 @@ export function ScheduleDetails({ id, transaction }: ScheduleDetailsProps) {
                   >
                     {state.upcomingDates.map(date => (
                       <View key={date}>
-                        {monthUtils.format(date, `${dateFormat} EEEE`)}
+                        {monthUtils.format(date, `${dateFormat} EEEE`, locale)}
                       </View>
                     ))}
                   </Stack>
@@ -914,7 +944,7 @@ export function ScheduleDetails({ id, transaction }: ScheduleDetailsProps) {
                   />
                 }
                 transactions={state.transactions}
-                fields={['date', 'payee', 'amount']}
+                fields={['date', 'payee', 'notes', 'amount']}
                 style={{
                   border: '1px solid ' + theme.tableBorder,
                   borderRadius: 4,

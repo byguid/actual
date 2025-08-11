@@ -7,16 +7,14 @@ import React, {
   type SetStateAction,
   type Dispatch,
 } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { Stack } from '@actual-app/components/stack';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { pushModal } from 'loot-core/client/actions/modals';
-import { useSchedules } from 'loot-core/client/data-hooks/schedules';
-import { initiallyLoadPayees } from 'loot-core/client/queries/queriesSlice';
 import { send } from 'loot-core/platform/client/fetch';
 import * as undo from 'loot-core/platform/client/undo';
 import { getNormalisedString } from 'loot-core/shared/normalisation';
@@ -25,23 +23,40 @@ import { mapField, friendlyOp } from 'loot-core/shared/rules';
 import { describeSchedule } from 'loot-core/shared/schedules';
 import { type RuleEntity, type NewRuleEntity } from 'loot-core/types/models';
 
-import { useAccounts } from '../hooks/useAccounts';
-import { useCategories } from '../hooks/useCategories';
-import { usePayees } from '../hooks/usePayees';
-import { useSelected, SelectedProvider } from '../hooks/useSelected';
-import { useDispatch } from '../redux';
-import { theme } from '../style';
-
+import { InfiniteScrollWrapper } from './common/InfiniteScrollWrapper';
 import { Link } from './common/Link';
 import { Search } from './common/Search';
-import { SimpleTable } from './common/SimpleTable';
 import { RulesHeader } from './rules/RulesHeader';
 import { RulesList } from './rules/RulesList';
 
-function mapValue(
-  field,
-  value,
-  { payees = [], categories = [], accounts = [] },
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { usePayees } from '@desktop-client/hooks/usePayees';
+import { useSchedules } from '@desktop-client/hooks/useSchedules';
+import {
+  useSelected,
+  SelectedProvider,
+} from '@desktop-client/hooks/useSelected';
+import { pushModal } from '@desktop-client/modals/modalsSlice';
+import { initiallyLoadPayees } from '@desktop-client/queries/queriesSlice';
+import { useDispatch } from '@desktop-client/redux';
+
+export type FilterData = {
+  payees?: Array<{ id: string; name: string }>;
+  categories?: Array<{ id: string; name: string }>;
+  accounts?: Array<{ id: string; name: string }>;
+  schedules?: readonly {
+    id: string;
+    rule: string;
+    _payee: string;
+    completed: boolean;
+  }[];
+};
+
+export function mapValue(
+  field: string,
+  value: unknown,
+  { payees = [], categories = [], accounts = [] }: Partial<FilterData>,
 ) {
   if (!value) return '';
 
@@ -61,12 +76,14 @@ function mapValue(
   return '(deleted)';
 }
 
-function ruleToString(rule, data) {
+export function ruleToString(rule: RuleEntity, data: FilterData) {
   const conditions = rule.conditions.flatMap(cond => [
     mapField(cond.field),
     friendlyOp(cond.op),
     cond.op === 'oneOf' || cond.op === 'notOneOf'
-      ? cond.value.map(v => mapValue(cond.field, v, data)).join(', ')
+      ? Array.isArray(cond.value)
+        ? cond.value.map(v => mapValue(cond.field, v, data)).join(', ')
+        : mapValue(cond.field, cond.value, data)
       : mapValue(cond.field, cond.value, data),
   ]);
   const actions = rule.actions.flatMap(action => {
@@ -78,19 +95,17 @@ function ruleToString(rule, data) {
         mapValue(action.field, action.value, data),
       ];
     } else if (action.op === 'link-schedule') {
-      const schedule = data.schedules.find(s => s.id === action.value);
+      const schedule = data.schedules?.find(s => s.id === String(action.value));
       return [
         friendlyOp(action.op),
         describeSchedule(
           schedule,
-          data.payees.find(p => p.id === schedule._payee),
+          data.payees?.find(p => p.id === schedule?._payee),
         ),
       ];
     } else if (action.op === 'prepend-notes' || action.op === 'append-notes') {
-      return [
-        friendlyOp(action.op),
-        '“' + mapValue(action.field, action.value, data) + '”',
-      ];
+      const noteValue = String(action.value || '');
+      return [friendlyOp(action.op), '\u201c' + noteValue + '\u201d'];
     } else {
       return [];
     }
@@ -111,6 +126,8 @@ export function ManageRules({
   payeeId,
   setLoading = () => {},
 }: ManageRulesProps) {
+  const { t } = useTranslation();
+
   const [allRules, setAllRules] = useState<RuleEntity[]>([]);
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState('');
@@ -184,7 +201,7 @@ export function ManageRules({
     }
 
     if (payeeId) {
-      undo.setUndoState('openModal', 'manage-rules');
+      undo.setUndoState('openModal', { name: 'manage-rules', options: {} });
     }
 
     loadData();
@@ -207,7 +224,7 @@ export function ManageRules({
 
     if (someDeletionsFailed) {
       alert(
-        t('Some rules were not deleted because they are linked to schedules'),
+        t('Some rules were not deleted because they are linked to schedules.'),
       );
     }
 
@@ -225,11 +242,16 @@ export function ManageRules({
 
   const onEditRule = useCallback(rule => {
     dispatch(
-      pushModal('edit-rule', {
-        rule,
-        onSave: async () => {
-          await loadRules();
-          setLoading(false);
+      pushModal({
+        modal: {
+          name: 'edit-rule',
+          options: {
+            rule,
+            onSave: async () => {
+              await loadRules();
+              setLoading(false);
+            },
+          },
         },
       }),
     );
@@ -258,11 +280,16 @@ export function ManageRules({
     };
 
     dispatch(
-      pushModal('edit-rule', {
-        rule,
-        onSave: async () => {
-          await loadRules();
-          setLoading(false);
+      pushModal({
+        modal: {
+          name: 'edit-rule',
+          options: {
+            rule,
+            onSave: async () => {
+              await loadRules();
+              setLoading(false);
+            },
+          },
         },
       }),
     );
@@ -271,7 +298,6 @@ export function ManageRules({
   const onHover = useCallback(id => {
     setHoveredRule(id);
   }, []);
-  const { t } = useTranslation();
 
   return (
     <SelectedProvider instance={selectedInst}>
@@ -293,13 +319,15 @@ export function ManageRules({
             }}
           >
             <Text>
-              {t('Rules are always run in the order that you see them.')}{' '}
+              <Trans>
+                Rules are always run in the order that you see them.
+              </Trans>{' '}
               <Link
                 variant="external"
                 to="https://actualbudget.org/docs/budgeting/rules/"
                 linkColor="muted"
               >
-                {t('Learn more')}
+                <Trans>Learn more</Trans>
               </Link>
             </Text>
           </View>
@@ -312,11 +340,7 @@ export function ManageRules({
         </View>
         <View style={{ flex: 1 }}>
           <RulesHeader />
-          <SimpleTable
-            loadMore={loadMore}
-            // Hide the last border of the item in the table
-            style={{ marginBottom: -1 }}
-          >
+          <InfiniteScrollWrapper loadMore={loadMore}>
             {filteredRules.length === 0 ? (
               <EmptyMessage text={t('No rules')} style={{ marginTop: 15 }} />
             ) : (
@@ -329,7 +353,7 @@ export function ManageRules({
                 onDeleteRule={rule => onDeleteRule(rule.id)}
               />
             )}
-          </SimpleTable>
+          </InfiniteScrollWrapper>
         </View>
         <View
           style={{
@@ -342,11 +366,13 @@ export function ManageRules({
           <Stack direction="row" align="center" justify="flex-end" spacing={2}>
             {selectedInst.items.size > 0 && (
               <Button onPress={onDeleteSelected}>
-                Delete {selectedInst.items.size} rules
+                <Trans count={selectedInst.items.size}>
+                  Delete {{ count: selectedInst.items.size }} rules
+                </Trans>
               </Button>
             )}
             <Button variant="primary" onPress={onCreateRule}>
-              {t('Create new rule')}
+              <Trans>Create new rule</Trans>
             </Button>
           </Stack>
         </View>

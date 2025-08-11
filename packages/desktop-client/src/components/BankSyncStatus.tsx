@@ -4,12 +4,12 @@ import { useTransition, animated } from 'react-spring';
 
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { useSelector } from '../redux';
-import { theme } from '../style';
-
 import { AnimatedRefresh } from './AnimatedRefresh';
+
+import { useSelector } from '@desktop-client/redux';
 
 export function BankSyncStatus() {
   const accountsSyncing = useSelector(state => state.account.accountsSyncing);

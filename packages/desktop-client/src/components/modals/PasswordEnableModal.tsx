@@ -4,30 +4,39 @@ import { Trans, useTranslation } from 'react-i18next';
 import { Button } from '@actual-app/components/button';
 import { Label } from '@actual-app/components/label';
 import { styles } from '@actual-app/components/styles';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { closeBudget, popModal } from 'loot-core/client/actions';
 import { send } from 'loot-core/platform/client/fetch';
 import * as asyncStorage from 'loot-core/platform/server/asyncStorage';
 
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Error as ErrorAlert } from '../alerts';
-import { Modal, ModalCloseButton, ModalHeader } from '../common/Modal';
-import { FormField } from '../forms';
+import { closeBudget } from '@desktop-client/budgets/budgetsSlice';
+import { Error as ErrorAlert } from '@desktop-client/components/alerts';
+import {
+  Modal,
+  ModalCloseButton,
+  ModalHeader,
+} from '@desktop-client/components/common/Modal';
+import { FormField } from '@desktop-client/components/forms';
 import {
   ConfirmOldPasswordForm,
   ConfirmPasswordForm,
-} from '../manager/subscribe/ConfirmPasswordForm';
+} from '@desktop-client/components/manager/subscribe/ConfirmPasswordForm';
 import {
   useAvailableLoginMethods,
   useMultiuserEnabled,
   useRefreshLoginMethods,
-} from '../ServerContext';
+} from '@desktop-client/components/ServerContext';
+import {
+  type Modal as ModalType,
+  popModal,
+} from '@desktop-client/modals/modalsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
-type PasswordEnableModalProps = {
-  onSave?: () => void;
-};
+type PasswordEnableModalProps = Extract<
+  ModalType,
+  { name: 'enable-password-auth' }
+>['options'];
 
 export function PasswordEnableModal({
   onSave: originalOnSave,

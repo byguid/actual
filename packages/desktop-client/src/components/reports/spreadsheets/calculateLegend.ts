@@ -1,12 +1,13 @@
+import { theme } from '@actual-app/components/theme';
+
 import {
   type LegendEntity,
   type IntervalEntity,
   type GroupedEntity,
   type balanceTypeOpType,
-} from 'loot-core/types/models/reports';
+} from 'loot-core/types/models';
 
-import { theme } from '../../../style';
-import { getColorScale } from '../chart-theme';
+import { getColorScale } from '@desktop-client/components/reports/chart-theme';
 
 export function calculateLegend(
   intervalData: IntervalEntity[],

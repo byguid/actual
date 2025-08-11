@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import * as bcrypt from 'bcrypt';
 
@@ -11,7 +11,7 @@ let _accountDb;
 
 export function getAccountDb() {
   if (_accountDb === undefined) {
-    const dbPath = join(config.serverFiles, 'account.sqlite');
+    const dbPath = join(resolve(config.get('serverFiles')), 'account.sqlite');
     _accountDb = openDatabase(dbPath);
   }
 
@@ -27,11 +27,17 @@ export function needsBootstrap() {
 export function listLoginMethods() {
   const accountDb = getAccountDb();
   const rows = accountDb.all('SELECT method, display_name, active FROM auth');
-  return rows.map(r => ({
-    method: r.method,
-    active: r.active,
-    displayName: r.display_name,
-  }));
+  return rows
+    .filter(f =>
+      rows.length > 1 && config.get('enforceOpenId')
+        ? f.method === 'openid'
+        : true,
+    )
+    .map(r => ({
+      method: r.method,
+      active: r.active,
+      displayName: r.display_name,
+    }));
 }
 
 export function getActiveLoginMethod() {
@@ -51,20 +57,24 @@ export function getLoginMethod(req) {
   if (
     typeof req !== 'undefined' &&
     (req.body || { loginMethod: null }).loginMethod &&
-    config.allowedLoginMethods.includes(req.body.loginMethod)
+    config.get('allowedLoginMethods').includes(req.body.loginMethod)
   ) {
     return req.body.loginMethod;
   }
 
-  if (config.loginMethod) {
-    return config.loginMethod;
+  //BY-PASS ANY OTHER CONFIGURATION TO ENSURE HEADER AUTH
+  if (
+    config.get('loginMethod') === 'header' &&
+    config.get('allowedLoginMethods').includes('header')
+  ) {
+    return config.get('loginMethod');
   }
 
   const activeMethod = getActiveLoginMethod();
-  return activeMethod || 'password';
+  return activeMethod || config.get('loginMethod');
 }
 
-export async function bootstrap(loginSettings) {
+export async function bootstrap(loginSettings, forced = false) {
   if (!loginSettings) {
     return { error: 'invalid-login-settings' };
   }
@@ -81,7 +91,7 @@ export async function bootstrap(loginSettings) {
    WHERE users.user_name <> '' and users.owner = 1`,
       ) || {};
 
-    if (!openIdEnabled || countOfOwner > 0) {
+    if (!forced && (!openIdEnabled || countOfOwner > 0)) {
       if (!needsBootstrap()) {
         accountDb.mutate('ROLLBACK');
         return { error: 'already-bootstrapped' };
@@ -93,7 +103,7 @@ export async function bootstrap(loginSettings) {
       return { error: 'no-auth-method-selected' };
     }
 
-    if (passEnabled && openIdEnabled) {
+    if (passEnabled && openIdEnabled && !forced) {
       accountDb.mutate('ROLLBACK');
       return { error: 'max-one-method-allowed' };
     }
@@ -106,7 +116,7 @@ export async function bootstrap(loginSettings) {
       }
     }
 
-    if (openIdEnabled) {
+    if (openIdEnabled && forced) {
       const { error } = await bootstrapOpenId(loginSettings.openId);
       if (error) {
         accountDb.mutate('ROLLBACK');

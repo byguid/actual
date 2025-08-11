@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
 import { AlignedText } from '@actual-app/components/aligned-text';
 import { Block } from '@actual-app/components/block';
 import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { Paragraph } from '@actual-app/components/paragraph';
+import { Select } from '@actual-app/components/select';
 import { SpaceBetween } from '@actual-app/components/space-between';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
@@ -14,33 +16,38 @@ import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
 import * as d from 'date-fns';
 
-import { addNotification } from 'loot-core/client/actions';
-import { useWidget } from 'loot-core/client/data-hooks/widget';
 import { send } from 'loot-core/platform/client/fetch';
 import * as monthUtils from 'loot-core/shared/months';
-import { amountToCurrency } from 'loot-core/shared/util';
-import { type SpendingWidget } from 'loot-core/types/models';
-import { type RuleConditionEntity } from 'loot-core/types/models/rule';
+import {
+  type SpendingWidget,
+  type RuleConditionEntity,
+} from 'loot-core/types/models';
 
-import { useFilters } from '../../../hooks/useFilters';
-import { useNavigate } from '../../../hooks/useNavigate';
-import { useDispatch } from '../../../redux';
-import { Select } from '../../common/Select';
-import { EditablePageHeaderTitle } from '../../EditablePageHeaderTitle';
-import { AppliedFilters } from '../../filters/AppliedFilters';
-import { FilterButton } from '../../filters/FiltersMenu';
-import { MobileBackButton } from '../../mobile/MobileBackButton';
-import { MobilePageHeader, Page, PageHeader } from '../../Page';
-import { PrivacyFilter } from '../../PrivacyFilter';
-import { useResponsive } from '../../responsive/ResponsiveProvider';
-import { SpendingGraph } from '../graphs/SpendingGraph';
-import { LegendItem } from '../LegendItem';
-import { LoadingIndicator } from '../LoadingIndicator';
-import { ModeButton } from '../ModeButton';
-import { calculateSpendingReportTimeRange } from '../reportRanges';
-import { createSpendingSpreadsheet } from '../spreadsheets/spending-spreadsheet';
-import { useReport } from '../useReport';
-import { fromDateRepr } from '../util';
+import { EditablePageHeaderTitle } from '@desktop-client/components/EditablePageHeaderTitle';
+import { AppliedFilters } from '@desktop-client/components/filters/AppliedFilters';
+import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
+import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
+import {
+  MobilePageHeader,
+  Page,
+  PageHeader,
+} from '@desktop-client/components/Page';
+import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
+import { SpendingGraph } from '@desktop-client/components/reports/graphs/SpendingGraph';
+import { LegendItem } from '@desktop-client/components/reports/LegendItem';
+import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
+import { ModeButton } from '@desktop-client/components/reports/ModeButton';
+import { calculateSpendingReportTimeRange } from '@desktop-client/components/reports/reportRanges';
+import { createSpendingSpreadsheet } from '@desktop-client/components/reports/spreadsheets/spending-spreadsheet';
+import { useReport } from '@desktop-client/components/reports/useReport';
+import { fromDateRepr } from '@desktop-client/components/reports/util';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import { useLocale } from '@desktop-client/hooks/useLocale';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { useRuleConditionFilters } from '@desktop-client/hooks/useRuleConditionFilters';
+import { useWidget } from '@desktop-client/hooks/useWidget';
+import { addNotification } from '@desktop-client/notifications/notificationsSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 export function Spending() {
   const params = useParams();
@@ -61,8 +68,10 @@ type SpendingInternalProps = {
 };
 
 function SpendingInternal({ widget }: SpendingInternalProps) {
+  const locale = useLocale();
   const dispatch = useDispatch();
   const { t } = useTranslation();
+  const format = useFormat();
 
   const {
     conditions,
@@ -71,7 +80,7 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
     onDelete: onDeleteFilter,
     onUpdate: onUpdateFilter,
     onConditionsOpChange,
-  } = useFilters<RuleConditionEntity>(
+  } = useRuleConditionFilters<RuleConditionEntity>(
     widget?.meta?.conditions,
     widget?.meta?.conditionsOp,
   );
@@ -109,14 +118,14 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
         .rangeInclusive(earliestMonth, monthUtils.currentMonth())
         .map(month => ({
           name: month,
-          pretty: monthUtils.format(month, 'MMMM, yyyy'),
+          pretty: monthUtils.format(month, 'MMMM, yyyy', locale),
         }))
         .reverse();
 
       setAllIntervals(allMonths);
     }
     run();
-  }, []);
+  }, [locale]);
 
   const getGraphData = useMemo(
     () =>
@@ -152,8 +161,10 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
     });
     dispatch(
       addNotification({
-        type: 'message',
-        message: t('Dashboard widget successfully saved.'),
+        notification: {
+          type: 'message',
+          message: t('Dashboard widget successfully saved.'),
+        },
       }),
     );
   }
@@ -448,17 +459,17 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
                 <View>
                   <LegendItem
                     color={theme.reportsGreen}
-                    label={monthUtils.format(compare, 'MMM, yyyy')}
+                    label={monthUtils.format(compare, 'MMM, yyyy', locale)}
                     style={{ padding: 0, paddingBottom: 10 }}
                   />
                   <LegendItem
                     color={theme.reportsGray}
                     label={
                       reportMode === 'single-month'
-                        ? monthUtils.format(compareTo, 'MMM, yyyy')
+                        ? monthUtils.format(compareTo, 'MMM, yyyy', locale)
                         : reportMode === 'budget'
-                          ? 'Budgeted'
-                          : 'Average'
+                          ? t('Budgeted')
+                          : t('Average')
                     }
                     style={{ padding: 0, paddingBottom: 10 }}
                   />
@@ -476,15 +487,30 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
                         style={{ marginBottom: 5, minWidth: 210 }}
                         left={
                           <Block>
-                            Spent {monthUtils.format(compare, 'MMM, yyyy')}
-                            {compare === monthUtils.currentMonth() && ' MTD'}:
+                            {compare === monthUtils.currentMonth()
+                              ? t('Spent {{monthYearFormatted}} MTD', {
+                                  monthYearFormatted: monthUtils.format(
+                                    compare,
+                                    'MMM, yyyy',
+                                    locale,
+                                  ),
+                                })
+                              : t('Spent {{monthYearFormatted}}:', {
+                                  monthYearFormatted: monthUtils.format(
+                                    compare,
+                                    'MMM, yyyy',
+                                    locale,
+                                  ),
+                                })}
+                            :
                           </Block>
                         }
                         right={
                           <Text style={{ fontWeight: 600 }}>
                             <PrivacyFilter>
-                              {amountToCurrency(
+                              {format(
                                 Math.abs(data.intervalData[todayDay].compare),
+                                'financial',
                               )}
                             </PrivacyFilter>
                           </Text>
@@ -496,15 +522,29 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
                         style={{ marginBottom: 5, minWidth: 210 }}
                         left={
                           <Block>
-                            Spent {monthUtils.format(compareTo, 'MMM, yyyy')}
-                            {compare === monthUtils.currentMonth() && ' MTD'}:
+                            {compareTo === monthUtils.currentMonth()
+                              ? t('Spent {{monthYearFormatted}} MTD:', {
+                                  monthYearFormatted: monthUtils.format(
+                                    compareTo,
+                                    'MMM, yyyy',
+                                    locale,
+                                  ),
+                                })
+                              : t('Spent {{monthYearFormatted}}:', {
+                                  monthYearFormatted: monthUtils.format(
+                                    compareTo,
+                                    'MMM, yyyy',
+                                    locale,
+                                  ),
+                                })}
                           </Block>
                         }
                         right={
                           <Text style={{ fontWeight: 600 }}>
                             <PrivacyFilter>
-                              {amountToCurrency(
+                              {format(
                                 Math.abs(data.intervalData[todayDay].compareTo),
+                                'financial',
                               )}
                             </PrivacyFilter>
                           </Text>
@@ -517,15 +557,21 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
                       style={{ marginBottom: 5, minWidth: 210 }}
                       left={
                         <Block>
-                          Budgeted
-                          {compare === monthUtils.currentMonth() && ' MTD'}:
+                          {compare === monthUtils.currentMonth() ? (
+                            <Trans>Budgeted MTD</Trans>
+                          ) : (
+                            <Trans>Budgeted</Trans>
+                          )}
                         </Block>
                       }
                       right={
                         <Text style={{ fontWeight: 600 }}>
                           <PrivacyFilter>
-                            {amountToCurrency(
-                              Math.abs(data.intervalData[todayDay].budget),
+                            {format(
+                              Math.round(
+                                Math.abs(data.intervalData[todayDay].budget),
+                              ),
+                              'financial',
                             )}
                           </PrivacyFilter>
                         </Text>
@@ -537,15 +583,27 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
                       style={{ marginBottom: 5, minWidth: 210 }}
                       left={
                         <Block>
-                          Spent Average
-                          {compare === monthUtils.currentMonth() && ' MTD'}:
+                          {compare === monthUtils.currentMonth()
+                            ? t('Spent Average {{monthYearFormatted}} MTD:', {
+                                monthYearFormatted: monthUtils.format(
+                                  compare,
+                                  'MMM, yyyy',
+                                ),
+                              })
+                            : t('Spent Average {{monthYearFormatted}}:', {
+                                monthYearFormatted: monthUtils.format(
+                                  compare,
+                                  'MMM, yyyy',
+                                ),
+                              })}
                         </Block>
                       }
                       right={
                         <Text style={{ fontWeight: 600 }}>
                           <PrivacyFilter>
-                            {amountToCurrency(
+                            {format(
                               Math.abs(data.intervalData[todayDay].average),
+                              'financial',
                             )}
                           </PrivacyFilter>
                         </Text>

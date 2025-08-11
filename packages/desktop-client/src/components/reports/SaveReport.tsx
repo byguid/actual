@@ -1,20 +1,21 @@
 import React, { createRef, useRef, useState } from 'react';
+import { Trans } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { SvgExpandArrow } from '@actual-app/components/icons/v0';
 import { Popover } from '@actual-app/components/popover';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
 
-import { useReports } from 'loot-core/client/data-hooks/reports';
 import { send, sendCatch } from 'loot-core/platform/client/fetch';
 import { type CustomReportEntity } from 'loot-core/types/models';
-
-import { SvgExpandArrow } from '../../icons/v0';
 
 import { SaveReportChoose } from './SaveReportChoose';
 import { SaveReportDelete } from './SaveReportDelete';
 import { SaveReportMenu } from './SaveReportMenu';
 import { SaveReportName } from './SaveReportName';
+
+import { useReports } from '@desktop-client/hooks/useReports';
 
 type SaveReportProps<T extends CustomReportEntity = CustomReportEntity> = {
   customReportItems: T;
@@ -199,7 +200,7 @@ export function SaveReport({
             flexShrink: 0,
           }}
         >
-          {!report.id ? 'Unsaved report' : report.name}&nbsp;
+          {!report.id ? <Trans>Unsaved report</Trans> : report.name}&nbsp;
         </Text>
         {savedStatus === 'modified' && <Text>(modified)&nbsp;</Text>}
         <SvgExpandArrow width={8} height={8} style={{ marginRight: 5 }} />

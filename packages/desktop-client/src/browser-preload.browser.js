@@ -2,8 +2,9 @@ import { initBackend as initSQLBackend } from 'absurd-sql/dist/indexeddb-main-th
 // eslint-disable-next-line import/no-unresolved
 import { registerSW } from 'virtual:pwa-register';
 
-import * as Platform from 'loot-core/client/platform';
+import * as Platform from 'loot-core/shared/platform';
 
+// eslint-disable-next-line typescript-paths/absolute-parent-import
 import packageJson from '../package.json';
 
 const backendWorkerUrl = new URL('./browser-server.js', import.meta.url);
@@ -21,7 +22,7 @@ const ACTUAL_VERSION = Platform.isPlaywright
     : packageJson.version;
 
 // *** Start the backend ***
-let worker;
+let worker = null;
 
 function createBackendWorker() {
   worker = new Worker(backendWorkerUrl);
@@ -86,7 +87,15 @@ global.Actual = {
       });
   },
 
-  startOAuthServer: () => {},
+  startSyncServer: () => {},
+
+  stopSyncServer: () => {},
+
+  isSyncServerRunning: () => false,
+
+  startOAuthServer: () => {
+    return '';
+  },
 
   restartElectronServer: () => {},
 
@@ -177,7 +186,7 @@ global.Actual = {
   },
 
   setTheme: theme => {
-    window.__actionsForMenu.saveGlobalPrefs({ theme });
+    window.__actionsForMenu.saveGlobalPrefs({ prefs: { theme } });
   },
 
   moveBudgetDirectory: () => {},

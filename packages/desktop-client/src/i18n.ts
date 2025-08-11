@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import i18n from 'i18next';
 import resourcesToBackend from 'i18next-resources-to-backend';
 
-import * as Platform from 'loot-core/client/platform';
+import * as Platform from 'loot-core/shared/platform';
 
 const languages = import.meta.glob(['/locale/*.json', '!/locale/*_old.json']);
 
@@ -57,14 +57,14 @@ export const setI18NextLanguage = (language: string) => {
 
     if (language.includes('-')) {
       const fallback = language.split('-')[0];
-      console.error(`Unknown locale ${language}, falling back to ${fallback}`);
+      console.info(`Unknown locale ${language}, falling back to ${fallback}`);
       setI18NextLanguage(fallback);
       return;
     }
 
     const lowercaseLanguage = language.toLowerCase();
     if (lowercaseLanguage !== language) {
-      console.error(
+      console.info(
         `Unknown locale ${language}, falling back to ${lowercaseLanguage}`,
       );
       setI18NextLanguage(lowercaseLanguage);
@@ -72,7 +72,7 @@ export const setI18NextLanguage = (language: string) => {
     }
 
     // Fall back to English
-    console.error(`Unknown locale ${language}, falling back to en`);
+    console.info(`Unknown locale ${language}, falling back to en`);
     setI18NextLanguage('en');
     return;
   }

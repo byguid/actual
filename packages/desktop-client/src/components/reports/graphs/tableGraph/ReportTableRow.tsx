@@ -5,27 +5,23 @@ import React, {
   type CSSProperties,
 } from 'react';
 
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
 import {
-  amountToCurrency,
-  amountToInteger,
-  integerToCurrency,
-} from 'loot-core/shared/util';
-import {
   type balanceTypeOpType,
   type GroupedEntity,
-} from 'loot-core/types/models/reports';
-import { type RuleConditionEntity } from 'loot-core/types/models/rule';
+  type RuleConditionEntity,
+} from 'loot-core/types/models';
 
-import { useAccounts } from '../../../../hooks/useAccounts';
-import { useCategories } from '../../../../hooks/useCategories';
-import { useNavigate } from '../../../../hooks/useNavigate';
-import { theme } from '../../../../style';
-import { useResponsive } from '../../../responsive/ResponsiveProvider';
-import { Row, Cell } from '../../../table';
-import { showActivity } from '../showActivity';
+import { showActivity } from '@desktop-client/components/reports/graphs/showActivity';
+import { Row, Cell } from '@desktop-client/components/table';
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCategories } from '@desktop-client/hooks/useCategories';
+import { useFormat } from '@desktop-client/hooks/useFormat';
+import { useNavigate } from '@desktop-client/hooks/useNavigate';
 
 type ReportTableRowProps = {
   item: GroupedEntity;
@@ -43,9 +39,15 @@ type ReportTableRowProps = {
   showHiddenCategories?: boolean;
   showOffBudget?: boolean;
   interval: string;
-  totalScrollRef?: RefObject<HTMLDivElement>;
+  totalScrollRef?: RefObject<HTMLDivElement | null>;
   handleScroll?: UIEventHandler<HTMLDivElement>;
   height?: number;
+  colorized?: boolean;
+};
+
+const getAmountColor = (amount: number) => {
+  if (amount === 0) return undefined;
+  return amount > 0 ? theme.noticeText : theme.errorText;
 };
 
 export const ReportTableRow = memo(
@@ -68,9 +70,11 @@ export const ReportTableRow = memo(
     handleScroll,
     height,
     interval,
+    colorized,
   }: ReportTableRowProps) => {
-    const average = amountToInteger(item[balanceTypeOp]) / intervalsCount;
+    const average = Math.round(item[balanceTypeOp] / intervalsCount);
     const groupByItem = groupBy === 'Interval' ? 'date' : 'name';
+    const format = useFormat();
 
     const navigate = useNavigate();
     const { isNarrowWidth } = useResponsive();
@@ -135,15 +139,18 @@ export const ReportTableRow = memo(
                     key={index}
                     style={{
                       minWidth: compact ? 50 : 85,
+                      ...(colorized && {
+                        color: getAmountColor(intervalItem[balanceTypeOp]),
+                      }),
                     }}
                     unexposedContent={({ value }) => (
                       <Text style={hoverUnderline}>{value}</Text>
                     )}
                     valueStyle={compactStyle}
-                    value={amountToCurrency(intervalItem[balanceTypeOp])}
+                    value={format(intervalItem[balanceTypeOp], 'financial')}
                     title={
                       Math.abs(intervalItem[balanceTypeOp]) > 100000
-                        ? amountToCurrency(intervalItem[balanceTypeOp])
+                        ? format(intervalItem[balanceTypeOp], 'financial')
                         : undefined
                     }
                     onClick={() =>
@@ -175,16 +182,19 @@ export const ReportTableRow = memo(
             : balanceTypeOp === 'totalTotals' && (
                 <>
                   <Cell
-                    value={amountToCurrency(item.totalAssets)}
+                    value={format(item.totalAssets, 'financial')}
                     title={
                       Math.abs(item.totalAssets) > 100000
-                        ? amountToCurrency(item.totalAssets)
+                        ? format(item.totalAssets, 'financial')
                         : undefined
                     }
                     width="flex"
                     privacyFilter
                     style={{
                       minWidth: compact ? 50 : 85,
+                      ...(colorized && {
+                        color: getAmountColor(item.totalAssets),
+                      }),
                     }}
                     unexposedContent={({ value }) => (
                       <Text style={hoverUnderline}>{value}</Text>
@@ -212,16 +222,19 @@ export const ReportTableRow = memo(
                     }
                   />
                   <Cell
-                    value={amountToCurrency(item.totalDebts)}
+                    value={format(item.totalDebts, 'financial')}
                     title={
                       Math.abs(item.totalDebts) > 100000
-                        ? amountToCurrency(item.totalDebts)
+                        ? format(item.totalDebts, 'financial')
                         : undefined
                     }
                     width="flex"
                     privacyFilter
                     style={{
                       minWidth: compact ? 50 : 85,
+                      ...(colorized && {
+                        color: getAmountColor(item.totalDebts),
+                      }),
                     }}
                     unexposedContent={({ value }) => (
                       <Text style={hoverUnderline}>{value}</Text>
@@ -251,15 +264,16 @@ export const ReportTableRow = memo(
                 </>
               )}
           <Cell
-            value={amountToCurrency(item[balanceTypeOp])}
+            value={format(item[balanceTypeOp], 'financial')}
             title={
               Math.abs(item[balanceTypeOp]) > 100000
-                ? amountToCurrency(item[balanceTypeOp])
+                ? format(item[balanceTypeOp], 'financial')
                 : undefined
             }
             style={{
               fontWeight: 600,
               minWidth: compact ? 50 : 85,
+              ...(colorized && { color: getAmountColor(item[balanceTypeOp]) }),
             }}
             unexposedContent={({ value }) => (
               <Text style={hoverUnderline}>{value}</Text>
@@ -289,15 +303,16 @@ export const ReportTableRow = memo(
             privacyFilter
           />
           <Cell
-            value={integerToCurrency(Math.round(average))}
+            value={format(average, 'financial')}
             title={
-              Math.abs(Math.round(average / 100)) > 100000
-                ? integerToCurrency(Math.round(average))
+              Math.abs(average / 100) > 100000
+                ? format(average, 'financial')
                 : undefined
             }
             style={{
               fontWeight: 600,
               minWidth: compact ? 50 : 85,
+              ...(colorized && { color: getAmountColor(average) }),
             }}
             valueStyle={compactStyle}
             width="flex"

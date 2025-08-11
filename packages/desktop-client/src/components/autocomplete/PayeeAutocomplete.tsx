@@ -13,25 +13,17 @@ import React, {
 } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
+import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
+import { SvgAdd, SvgBookmark } from '@actual-app/components/icons/v1';
 import { styles } from '@actual-app/components/styles';
 import { TextOneLine } from '@actual-app/components/text-one-line';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { css, cx } from '@emotion/css';
 
-import {
-  createPayee,
-  getActivePayees,
-} from 'loot-core/client/queries/queriesSlice';
 import { getNormalisedString } from 'loot-core/shared/normalisation';
 import { type AccountEntity, type PayeeEntity } from 'loot-core/types/models';
-
-import { useAccounts } from '../../hooks/useAccounts';
-import { useCommonPayees, usePayees } from '../../hooks/usePayees';
-import { SvgAdd, SvgBookmark } from '../../icons/v1';
-import { useDispatch } from '../../redux';
-import { theme } from '../../style';
-import { Button } from '../common/Button';
-import { useResponsive } from '../responsive/ResponsiveProvider';
 
 import {
   Autocomplete,
@@ -39,6 +31,14 @@ import {
   AutocompleteFooter,
 } from './Autocomplete';
 import { ItemHeader } from './ItemHeader';
+
+import { useAccounts } from '@desktop-client/hooks/useAccounts';
+import { useCommonPayees, usePayees } from '@desktop-client/hooks/usePayees';
+import {
+  createPayee,
+  getActivePayees,
+} from '@desktop-client/queries/queriesSlice';
+import { useDispatch } from '@desktop-client/redux';
 
 export type PayeeAutocompleteItem = PayeeEntity;
 
@@ -317,7 +317,7 @@ export function PayeeAutocomplete({
       return filteredSuggestions;
     }
 
-    return [{ id: 'new', favorite: 0, name: '' }, ...filteredSuggestions];
+    return [{ id: 'new', favorite: false, name: '' }, ...filteredSuggestions];
   }, [commonPayees, payees, focusTransferPayees, accounts, hasPayeeInput]);
 
   const dispatch = useDispatch();
@@ -370,7 +370,7 @@ export function PayeeAutocomplete({
           setPayeeFieldFocused(false);
         },
         onFocus: () => setPayeeFieldFocused(true),
-        onChange: setRawPayee,
+        onChangeValue: setRawPayee,
       }}
       onUpdate={(id, inputValue) => onUpdate?.(id, makeNew(id, inputValue))}
       onSelect={handleSelect}
@@ -448,9 +448,9 @@ export function PayeeAutocomplete({
             <AutocompleteFooter embedded={embedded}>
               {showMakeTransfer && (
                 <Button
-                  type={focusTransferPayees ? 'menuSelected' : 'menu'}
+                  variant={focusTransferPayees ? 'menuSelected' : 'menu'}
                   style={showManagePayees && { marginBottom: 5 }}
-                  onClick={() => {
+                  onPress={() => {
                     onUpdate?.(null, null);
                     setFocusTransferPayees(!focusTransferPayees);
                   }}
@@ -459,7 +459,7 @@ export function PayeeAutocomplete({
                 </Button>
               )}
               {showManagePayees && (
-                <Button type="menu" onClick={() => onManagePayees()}>
+                <Button variant="menu" onPress={() => onManagePayees()}>
                   <Trans>Manage payees</Trans>
                 </Button>
               )}

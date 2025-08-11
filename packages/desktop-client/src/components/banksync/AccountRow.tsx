@@ -2,35 +2,41 @@ import React, { memo } from 'react';
 import { Trans } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { styles } from '@actual-app/components/styles';
+import { theme } from '@actual-app/components/theme';
+import { Tooltip } from '@actual-app/components/tooltip';
+import { format as formatDate, type Locale } from 'date-fns';
 
-import { format } from 'loot-core/src/shared/months';
-import { type AccountEntity } from 'loot-core/src/types/models';
+import { tsToRelativeTime } from 'loot-core/shared/util';
+import { type AccountEntity } from 'loot-core/types/models';
 
-import { useDateFormat } from '../../hooks/useDateFormat';
-import { theme } from '../../style';
-import { Row, Cell } from '../table';
-
-const tsToString = (ts: string | null, dateFormat: string) => {
-  if (!ts) return 'Unknown';
-
-  const parsed = new Date(parseInt(ts, 10));
-  return `${format(parsed, dateFormat)} ${format(parsed, 'HH:mm:ss')}`;
-};
+import { Row, Cell } from '@desktop-client/components/table';
 
 type AccountRowProps = {
   account: AccountEntity;
   hovered: boolean;
   onHover: (id: AccountEntity['id'] | null) => void;
   onAction: (account: AccountEntity, action: 'link' | 'edit') => void;
+  locale: Locale;
 };
 
 export const AccountRow = memo(
-  ({ account, hovered, onHover, onAction }: AccountRowProps) => {
+  ({ account, hovered, onHover, onAction, locale }: AccountRowProps) => {
     const backgroundFocus = hovered;
 
-    const dateFormat = useDateFormat() || 'MM/dd/yyyy';
+    const lastSyncString = tsToRelativeTime(account.last_sync, locale, {
+      capitalize: true,
+    });
+    const lastSyncDateTime = formatDate(
+      new Date(parseInt(account.last_sync ?? '0', 10)),
+      'MMM d, yyyy, HH:mm:ss',
+      { locale },
+    );
 
-    const lastSync = tsToString(account.last_sync, dateFormat);
+    const potentiallyTruncatedAccountName =
+      account.name.length > 30
+        ? account.name.slice(0, 30) + '...'
+        : account.name;
 
     return (
       <Row
@@ -51,7 +57,7 @@ export const AccountRow = memo(
           plain
           style={{ color: theme.tableText, padding: '10px' }}
         >
-          {account.name}
+          {potentiallyTruncatedAccountName}
         </Cell>
 
         <Cell
@@ -63,14 +69,33 @@ export const AccountRow = memo(
           {account.bankName}
         </Cell>
 
-        <Cell
-          name="lastSync"
-          width={200}
-          plain
-          style={{ color: theme.tableText, padding: '10px' }}
-        >
-          {account.account_sync_source ? lastSync : ''}
-        </Cell>
+        {account.account_sync_source ? (
+          <Tooltip
+            placement="bottom start"
+            content={lastSyncDateTime}
+            style={{
+              ...styles.tooltip,
+            }}
+          >
+            <Cell
+              name="lastSync"
+              width={200}
+              plain
+              style={{
+                color: theme.tableText,
+                padding: '11px',
+                textDecoration: 'underline',
+                textDecorationStyle: 'dashed',
+                textDecorationColor: theme.pageTextSubdued,
+                textUnderlineOffset: '4px',
+              }}
+            >
+              {lastSyncString}
+            </Cell>
+          </Tooltip>
+        ) : (
+          ''
+        )}
 
         {account.account_sync_source ? (
           <Cell name="edit" plain style={{ paddingRight: '10px' }}>
