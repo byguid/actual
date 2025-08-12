@@ -164,7 +164,8 @@ export async function batchUpdateTransactions({
     );
   }
 
-  if (detectOrphanPayees) {
+  // TODO: temporarily disable because it bothers every time I mark transfers
+  if (detectOrphanPayees && false) {
     // Look for any orphaned payees and notify the user about merging
     // them
 
